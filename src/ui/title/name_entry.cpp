@@ -2,6 +2,7 @@
 
 #include "ui/menu/hand.h"
 #include "ui/menu/ps1_art.h"
+#include "ui/ru_ui.h"
 
 #include <algorithm>
 #include <cmath>
@@ -270,7 +271,7 @@ void NameEntry::draw(DrawList& dl, UiKit& kit) const {
   panel(119, 56, 360, 192, 40);
   {
     // Title "Name": the tab label of the name bar, in the notch at the top-left of the panel at (120, 304), left aligned.
-    const std::u32string title = kTitle[li];
+    const std::u32string title = ru_ui::u32(kTitle[li], lang_);
     const render::FaceId title_face = hd_face;
     const float sc = lab_scale(0.30f);
     dl.text(title_face, title, canvas_x(120) + 18.0f + offset_x(0.30f), canvas_y(304) + 7.0f - 0.5f * kit.text().line_height(title_face, sc), title_c,
@@ -335,6 +336,7 @@ void NameEntry::draw(DrawList& dl, UiKit& kit) const {
     else if (kind == Button::Default) label = kDefault[li];
     else if (!ps1) label = kChange[li];
     else label = kind == Button::Katakana ? U"カタカナ" : kind == Button::Hiragana ? U"ひらがな" : U"英数字";
+    label = ru_ui::u32(label, lang_);
     // button_index is the PS1 button index 0..4 (Alnum / "Change Name" = 2, Confirm 3, Default 4).
     const int button_index = static_cast<int>(kind);
     Lab position;
@@ -419,7 +421,7 @@ void NameEntry::draw(DrawList& dl, UiKit& kit) const {
   if (flash_ > 0) dl.rect(white_set, 300, 676, 320, 89, render::pack_rgba(220, 40, 40, static_cast<u8>(std::min(1.0f, flash_ / 0.45f) * 150)));
   {
     // Prompt in the prompt bar at (200 (DE 175), 833.3).
-    const std::u32string prompt = kPrompt[li];
+    const std::u32string prompt = ru_ui::u32(kPrompt[li], lang_);
     const render::FaceId prompt_face = hd_face;
     const float sc = lab_scale(0.35f);
     dl.text(prompt_face, prompt, canvas_x(lang_ == import::Lang::De ? 70.0f : 80.0f) + offset_x(0.35f), canvas_y(375.0f) + offset_y(0.35f), normal, sc);
