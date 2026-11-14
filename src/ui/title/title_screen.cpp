@@ -309,11 +309,11 @@ void TitleScreen::draw(DrawList& dl) const {
     // Page 1 (vibration): On / Off at the same positions (no JP shift), and the footer.
     const bool style82 = page_ == 0 && variant_ == 2;
     const float y0 = 576.4f + (style82 && lang_ == import::Lang::Jp ? 6.0f * kCanvasHeight / 448.0f : 0.0f), pitch = 68.57f;
-    const font::Slot face_slot = style82 && lang_ == import::Lang::Jp ? font::kKb : font::kCi;
+    const font::Slot face_slot = lang_ == import::Lang::En && !ru_ui::entries().empty() ? font::kBn : style82 && lang_ == import::Lang::Jp ? font::kKb : font::kCi;
     // Footer: JP slot 0 kb_70, else slot 5 ci_70, at PS1 (0x144, 200 / JP 206), colour 0x909090.
     if (page_ == 1) {
       const bool jp = lang_ == import::Lang::Jp;
-      const font::Slot fs = jp ? font::kKb : font::kCi;
+      const font::Slot fs = lang_ == import::Lang::En && !ru_ui::entries().empty() ? font::kBn : jp ? font::kKb : font::kCi;
       dl.text(kit_->fonts().face(fs), ru_ui::u32(kVibration[std::min(lang_index(lang_), 5)], lang_), 0x144 * 2.0f, (jp ? 206.0f : 200.0f) * kCanvasHeight / 448.0f,
               font::h2(0x909090, 0x14, 4), font::slot(fs).scale);
     }
@@ -326,7 +326,7 @@ void TitleScreen::draw(DrawList& dl) const {
       const float th = bars_h_[variant_ == 2 ? 1 : 0], ps1_scale = kCanvasHeight / 448.0f;
       const int lang_idx = std::min(lang_index(lang_), 5);
       // Page 0's font slot.
-      const font::Slot f0 = variant_ == 2 && lang_ == import::Lang::Jp ? font::kKb : font::kCi;
+      const font::Slot f0 = lang_ == import::Lang::En && !ru_ui::entries().empty() ? font::kBn : variant_ == 2 && lang_ == import::Lang::Jp ? font::kKb : font::kCi;
       auto sprt = [&](float x0, float y0p, int cell, float w) {
         const float v0 = (32.0f * cell + 1.0f) / th, v1 = std::min(32.0f * cell + 33.0f, th) / th;
         for (float x = 0; x < w; x += 256.0f) {
