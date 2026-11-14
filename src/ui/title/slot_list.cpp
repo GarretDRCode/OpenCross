@@ -12,6 +12,7 @@
 #include "render/texture.h"
 #include "ui/menu/ps1_art.h"
 #include "ui/menu/save_layout.h"
+#include "ui/ru_ui.h"
 
 namespace oc::ui {
 
@@ -307,14 +308,14 @@ void SlotList::draw(DrawList& dl, UiKit& kit) const {
   };
   if (!tables_) tables_ = std::make_unique<import::LangTables>(), tables_->init(&kit.vfs());
   auto menu_str = [&](u32 addr, const char* fb) -> std::u32string {
-    if (const std::string* text = tables_->menu_text(addr, lang_); text && !text->empty()) return import::utf8_to_u32(*text);
-    return import::utf8_to_u32(fb);
+    if (const std::string* text = tables_->menu_text(addr, lang_); text && !text->empty()) return ru_ui::u32(import::utf8_to_u32(*text), lang_);
+    return ru_ui::u32(import::utf8_to_u32(fb), lang_);
   };
   // A cmnmes.txt caption keyed by its JP / internal name.
   auto cmn = [&](const char* key, const char* fb) -> std::u32string {
     if (const import::TextTable* table = tables_->table("cmnmes"))
-      if (const std::string* caption = table->get(key, lang_); caption && !caption->empty()) return import::utf8_to_u32(*caption);
-    return import::utf8_to_u32(fb);
+      if (const std::string* caption = table->get(key, lang_); caption && !caption->empty()) return ru_ui::u32(import::utf8_to_u32(*caption), lang_);
+    return ru_ui::u32(import::utf8_to_u32(fb), lang_);
   };
 
   // Pointer: menutest_cur.png (23 x 11) pulsing like the menu's; the PS1 red triangle when the sprite is missing.
@@ -390,7 +391,7 @@ void SlotList::draw(DrawList& dl, UiKit& kit) const {
       if (!rows_[file_no]) continue;
       const save::SaveSlot& data = rows_[file_no]->data;
       const auto party = data.party();
-      std::u32string name = file_no == 0 ? import::utf8_to_u32(sl::auto_save_caption(li))
+      std::u32string name = file_no == 0 ? ru_ui::u32(import::utf8_to_u32(sl::auto_save_caption(li)), lang_)
                                         : party[0] < save::kNumChars && name_of_ ? name_of_(data, rows_[file_no]->ext_names, party[0]) : std::u32string();
       std::replace(name.begin(), name.end(), U'\n', U' ');
       labels[file_no] = {std::move(name), sl::row_location(location_lines(data).first)};
@@ -531,7 +532,7 @@ void SlotList::draw(DrawList& dl, UiKit& kit) const {
   const std::u32string leader = !party.empty() && party[0] < save::kNumChars && name_of_ ? name_of_(save_data, cur->ext_names, party[0]) : std::u32string();
   // Card 1's CHRONO00 and the page's file 0 are the auto-saves.
   const bool auto_file = cur->slot == 0 && cur->card <= 1;
-  const std::u32string name = auto_file ? import::utf8_to_u32(sl::auto_save_caption(li)) : leader;
+  const std::u32string name = auto_file ? ru_ui::u32(import::utf8_to_u32(sl::auto_save_caption(li)), lang_) : leader;
   const std::string stars = std::to_string(std::min<int>(save_data.stars_total(), 99)), tb = sl::playtime(save_data.playtime_frames());
   std::string gold;
   {
