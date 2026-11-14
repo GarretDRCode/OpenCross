@@ -204,7 +204,7 @@ float MainMenu::Impl::list_maxw(int list_id, int lang_idx) {
   float widest = 0;
   for (int entry = 0; entry < (list_id == 0 ? 6 : 2); ++entry) {
     const Str6& strings = list_id == 0 ? kMainLabels[entry] : kPickLabels[entry];
-    const std::u32string label = utf32(strings.by_lang[lang_idx]);
+    const std::u32string label = utf32(ru_ui::utf8(strings.by_lang[lang_idx], lang_idx == 0 ? import::Lang::En : lang));
     fonts.prepare(style.slot, label);
     widest = std::max(widest, std::trunc(fonts.measure(style.slot, label, scale) / 2.5f));
   }
