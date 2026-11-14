@@ -1,0 +1,65 @@
+# OpenCross optional Russian UI labels. UTF-8; each line is English<TAB>Russian.
+# Install as <Chrono Cross>/mods/Russian_UI/ui/ru_ui.tsv and enable Russian_UI in Mods.
+# For the Cat & Mouse Russian translation, keep [Game] Language=en.
+Status	Состояние
+Elements	Элементы
+Equip.	Снаряж.
+Items	Предметы
+Customize	Настройки
+Save/Load	Сохр./Загр.
+Use	Применить
+Allocate	Назначить
+Member's Condition	Состояние отряда
+Allocate/Use Elements	Управление элементами
+Change Equipment	Снаряжение
+Key Items	Важные вещи
+Configuration	Настройки
+Save/Load Progress	Сохранение / загрузка
+Weapons	Оружие
+Weapon	Оружие
+Armor	Доспехи
+Accessories	Аксессуары
+Profile	Профиль
+Element Level	Уровень элемента
+Attack	Атака
+Element	Элементы
+Defend	Защита
+Run Away	Побег
+Swap	Замена
+End Turn	Конец хода
+FIELD EFFECT	Поле стихий
+ELEMENT TRAP	Ловушка элемента
+PLAYER-	ИГРОК-
+ENEMY-	ВРАГ-
+NO	НЕТ
+Sta.	Вын.
+Out.-	Ист.-
+Lv	Ур.
+HIT%	ПОП.%
+INNATE:	СТИХИЯ:
+INNATE	СТИХИЯ
+NORMAL	ОБЫЧНАЯ
+DYNAMIC	ДИНАМИЧ.
+Remove All	Убрать всё
+Remove	Убрать
+Auto Allocate	Распределить
+Fill Blanks	Заполнить пустые
+Equip	Снарядить
+Save	Сохранить
+Load	Загрузить
+New Game	Новая игра
+Continue	Продолжить
+Settings	Настройки
+Quit	Выход
+New Game+	Новая игра+
+Continue+	Продолжить+
+PAUSE	ПАУЗА
+ON	ВКЛ.
+OFF	ВЫКЛ.
+Controller	Управление
+Yes	Да
+No	Нет
+PLAY	ИГРА
+LEVEL	УРОВЕНЬ
+TIME	ВРЕМЯ
+GOLD	ЗОЛОТО
