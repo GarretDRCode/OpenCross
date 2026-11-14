@@ -1,11 +1,12 @@
-name: OpenCross Russian font fix (Windows)
+name: OpenCross Russian UI addon (Windows)
 
 on:
   push:
     branches:
       - ru-battle-results-font-fix
     paths:
-      - src/game/battle/battle_results.cpp
+      - src/**
+      - addons/Russian_UI/**
       - .github/workflows/ru-font-fix.yml
   workflow_dispatch:
 
@@ -56,7 +57,7 @@ jobs:
 
       - name: Build patched OpenCross
         shell: pwsh
-        run: .\build.ps1 release -Target opencross -WholeProgram -VcpkgRoot $env:VCPKG_ROOT
+        run: .\build.ps1 release -Target opencross -VcpkgRoot $env:VCPKG_ROOT
 
       - name: Save vcpkg cache
         uses: actions/cache/save@v4
@@ -68,7 +69,15 @@ jobs:
       - name: Upload patched executable
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCross-RU-Font-Fix-Windows
+          name: OpenCross-RU-UI-Windows
           path: build/win-x64/bin/Release/opencross.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload optional Russian UI mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: Russian_UI-mod
+          path: addons/Russian_UI/ui/ru_ui.tsv
           if-no-files-found: error
           retention-days: 30
