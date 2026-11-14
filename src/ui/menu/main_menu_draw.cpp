@@ -114,7 +114,8 @@ void MainMenu::Impl::pick_face(const std::u32string& str, float rel, render::Fac
   if (face_kb != render::kNoFace && (jp() || !glyphs_ok(str))) face = face_kb;
 }
 
-float MainMenu::Impl::tw(const std::u32string& str, float rel) {
+float MainMenu::Impl::tw(const std::u32string& original, float rel) {
+  const std::u32string str = ru_ui::u32(original, lang);
   render::FaceId face;
   float scale;
   pick_face(str, rel, face, scale);
@@ -122,7 +123,8 @@ float MainMenu::Impl::tw(const std::u32string& str, float rel) {
   return text->measure(face, str, scale);
 }
 
-void MainMenu::Impl::T(float x, float y, const std::u32string& str, u32 colour, float rel) {
+void MainMenu::Impl::T(float x, float y, const std::u32string& original, u32 colour, float rel) {
+  const std::u32string str = ru_ui::u32(original, lang);
   if (str.empty()) return;
   render::FaceId face;
   float scale;
@@ -178,7 +180,8 @@ void MainMenu::Impl::Frame(int frame, float x, float y, u32 colour, float* out_w
 }
 
 // Text with its top-left at PS1 (x, y), centred in a 16-px row.
-void MainMenu::Impl::TP(float x, float y, const std::u32string& str, u32 colour, float rel) {
+void MainMenu::Impl::TP(float x, float y, const std::u32string& original, u32 colour, float rel) {
+  const std::u32string str = ru_ui::u32(original, lang);
   if (str.empty()) return;
   render::FaceId face;
   float scale;
@@ -304,7 +307,8 @@ bool MainMenu::Impl::glyphs_ok(const std::u32string& str) const {
   return true;
 }
 
-void MainMenu::Impl::HT(render::FaceId face, float x, float y, const std::u32string& str, u32 colour, float scale, bool right) {
+void MainMenu::Impl::HT(render::FaceId face, float x, float y, const std::u32string& original, u32 colour, float scale, bool right) {
+  const std::u32string str = ru_ui::u32(original, lang);
   if (str.empty()) return;
   text->prepare(face, str);
   const bool kb = face == face_kb;
@@ -424,8 +428,8 @@ void MainMenu::Impl::bar_and_title(int title_index, bool bar, float dx) {
 // cmnmes.txt text is drawn (keyed by the JP caption) at the same spot. `key` = JP key, `fallback` = English fallback.
 std::u32string MainMenu::Impl::capt(std::string_view key, const char* fallback) {
   if (const import::TextTable* rows = lt.table("cmnmes"))
-    if (const std::string* row = rows->get(key, lang); row && !trim(*row).empty()) return utf32(trim(*row));
-  return utf32(fallback);
+    if (const std::string* row = rows->get(key, lang); row && !trim(*row).empty()) return ru_ui::u32(utf32(trim(*row)), lang);
+  return ru_ui::u32(utf32(fallback), lang);
 }
 
 // Caption in the top-left notch of a frame at PS1 (frame_x, frame_y): kind 0 Weapons, 1 Armor, 2 Accessories, 3 Elements, 4 Key
@@ -457,7 +461,12 @@ void MainMenu::Impl::notch_caption(float frame_x, float frame_y, int kind) {
     Img(icons, PX(frame_x + 9.0f), PY(frame_y - 6.0f), PX(26), PY(32), 0.0075f + 0.2f * static_cast<float>(kind), 0.0075f,
         0.0075f + 0.2f * static_cast<float>(kind) + 0.185f, 0.985f);
   }
-  HT(face_gn, frame_x + 34.0f, frame_y + 0.5f, capt(kKey[kind], kEnglish[kind]), kText, 0.31f);
+  const std::u32string caption = capt(kKey[kind], kEnglish[kind]);
+  float scale = 0.31f;
+  text->prepare(face_gn, caption);
+  const float width = text->measure(face_gn, caption, scale) / xscale;
+  if (width > kGapWidth[kind]) scale *= kGapWidth[kind] / width;
+  HT(face_gn, frame_x + 34.0f, frame_y + 0.5f, caption, kText, scale);
 }
 
 // ---- shared PS1 drawing pieces
