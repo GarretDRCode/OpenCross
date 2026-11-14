@@ -7,6 +7,7 @@
 #include "audio/bgm_table.h"
 #include "core/log.h"
 #include "import/tim.h"
+#include "ui/ru_ui.h"
 
 namespace oc::ui {
 
@@ -155,13 +156,14 @@ void TitleScreen::step_music(float dt) {
 
 std::u32string TitleScreen::label(int i) const {
   const int lang_idx = std::min(lang_index(lang_), 5);
-  if (page_ == 1) return i == 0 ? kOn[lang_idx] : kOff[lang_idx];
-  if (variant_ == 2) return i == 0 ? kNewPlus[lang_idx] : kContPlus[lang_idx];
+  const auto translated = [this](std::u32string_view word) { return ru_ui::u32(word, lang_); };
+  if (page_ == 1) return translated(i == 0 ? kOn[lang_idx] : kOff[lang_idx]);
+  if (variant_ == 2) return translated(i == 0 ? kNewPlus[lang_idx] : kContPlus[lang_idx]);
   switch (i) {
-    case 0: return kNew[lang_idx];
-    case 1: return kCont[lang_idx];
-    case 2: return kSettings[lang_idx];
-    default: return kQuit[lang_idx];
+    case 0: return translated(kNew[lang_idx]);
+    case 1: return translated(kCont[lang_idx]);
+    case 2: return translated(kSettings[lang_idx]);
+    default: return translated(kQuit[lang_idx]);
   }
 }
 
@@ -294,7 +296,7 @@ void TitleScreen::draw(DrawList& dl) const {
     const int cnt = static_cast<int>(std::fmod(time_ * 60.0f, 70.0f));
     const float a = cnt <= 20 ? static_cast<float>(cnt) / 20.0f : cnt <= 60 ? static_cast<float>(60 - cnt) / 40.0f : 0.0f;
     if (cnt <= 60 && a > 0.0f) {
-      const std::u32string prompt = kPrompt[std::min(lang_index(lang_), 5)];
+      const std::u32string prompt = ru_ui::u32(kPrompt[std::min(lang_index(lang_), 5)], lang_);
       const u8 ab = static_cast<u8>(a * 255.0f + 0.5f);
       const font::Ink ink{pack_rgba(230, 230, 230, ab), pack_rgba(33, 33, 33, ab), true, false};
       dl.text(kit_->fonts().face(font::kBn), prompt, 640, 700.111f, ink, font::slot(font::kBn).scale * 0.95f, 1);
@@ -312,7 +314,7 @@ void TitleScreen::draw(DrawList& dl) const {
     if (page_ == 1) {
       const bool jp = lang_ == import::Lang::Jp;
       const font::Slot fs = jp ? font::kKb : font::kCi;
-      dl.text(kit_->fonts().face(fs), kVibration[std::min(lang_index(lang_), 5)], 0x144 * 2.0f, (jp ? 206.0f : 200.0f) * kCanvasHeight / 448.0f,
+      dl.text(kit_->fonts().face(fs), ru_ui::u32(kVibration[std::min(lang_index(lang_), 5)], lang_), 0x144 * 2.0f, (jp ? 206.0f : 200.0f) * kCanvasHeight / 448.0f,
               font::h2(0x909090, 0x14, 4), font::slot(fs).scale);
     }
     const float sc = font::slot(face_slot).scale;
