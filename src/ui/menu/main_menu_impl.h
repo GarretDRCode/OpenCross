@@ -15,6 +15,7 @@
 #include "ui/menu/menu_common.h"
 #include "ui/menu/use_flow.h"
 #include "ui/ps1_font.h"
+#include "ui/ru_ui.h"
 
 namespace oc::ui {
 
@@ -409,7 +410,7 @@ struct MainMenu::Impl {
   const Tex* portrait(int form);
   void build();
 
-  const char* S6(const Str6& strings) const { return strings.by_lang[static_cast<int>(lang)]; }
+  const char* S6(const Str6& strings) const { return ru_ui::cstr(strings.by_lang[static_cast<int>(lang)], lang); }
   bool jp() const { return lang == import::Lang::Jp; }
   int lang_index() const { return std::clamp(static_cast<int>(lang), 0, 5); }
 
