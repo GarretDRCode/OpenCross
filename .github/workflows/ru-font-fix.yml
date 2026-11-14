@@ -1,0 +1,74 @@
+name: OpenCross Russian font fix (Windows)
+
+on:
+  push:
+    branches:
+      - ru-battle-results-font-fix
+    paths:
+      - src/game/battle/battle_results.cpp
+      - .github/workflows/ru-font-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\..\vcpkg
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install vcpkg at manifest baseline
+        shell: pwsh
+        run: |
+          $baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          git -C $env:VCPKG_ROOT checkout -q $baseline
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\vcpkg-cache" | Out-Null
+          "VCPKG_BINARY_SOURCES=clear;files,$env:RUNNER_TEMP\vcpkg-cache,readwrite" >> $env:GITHUB_ENV
+
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}\vcpkg-cache
+          key: vcpkg-${{ hashFiles('vcpkg.json') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-${{ hashFiles('vcpkg.json') }}-
+            vcpkg-
+
+      - name: Restore or populate librempeg
+        id: librempeg-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/librempeg
+          key: librempeg-${{ hashFiles('scripts/build-librempeg.*', 'scripts/install-librempeg.py') }}
+
+      - name: Build librempeg
+        if: steps.librempeg-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          choco install nasm make -y --no-progress
+          .\scripts\build-librempeg.ps1 -NasmDir "$env:ProgramFiles\NASM"
+
+      - name: Build patched OpenCross
+        shell: pwsh
+        run: .\build.ps1 release -Target opencross -WholeProgram -VcpkgRoot $env:VCPKG_ROOT
+
+      - name: Save vcpkg cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ${{ runner.temp }}\vcpkg-cache
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
+
+      - name: Upload patched executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCross-RU-Font-Fix-Windows
+          path: build/win-x64/bin/Release/opencross.exe
+          if-no-files-found: error
+          retention-days: 30
