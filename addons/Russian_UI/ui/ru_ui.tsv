@@ -63,3 +63,34 @@ PLAY	ИГРА
 LEVEL	УРОВЕНЬ
 TIME	ВРЕМЯ
 GOLD	ЗОЛОТО
+New Game +	Новая игра +
+Continue +	Продолжить +
+Press any button	Нажмите любую кнопку
+Vibration Function	Вибрация
+World Names	Названия миров
+On	Вкл.
+Off	Выкл.
+Reserve	Резерв
+Current Party	Текущий отряд
+Exchange Rate	Курс обмена
+No crafting cost	Без затрат на создание
+Make the exchange?	Совершить обмен?
+No. in Stock	В наличии
+Required Lv reached	Нужный уровень достигнут
+Window Frame: Custom	Оформление окна
+Custom Window Frame	Оформление окна
+Window Frame	Рамка окна
+Save a File	Сохранить игру
+Load a File	Загрузить игру
+Slot 1	Ячейка 1
+Slot 2	Ячейка 2
+Please choose a slot.	Выберите ячейку.
+Please select a file.	Выберите файл.
+No save data in OpenCross.	Нет сохранений OpenCross.
+No save data in Slot 1.	Нет сохранений в ячейке 1.
+No save data in Slot 2.	Нет сохранений в ячейке 2.
+Save data in Slot 1 is corrupted.	Сохранение в ячейке 1 повреждено.
+Save data in Slot 2 is corrupted.	Сохранение в ячейке 2 повреждено.
+Debug tools used this session	В этом сеансе применялись средства отладки
+Saving to Slot 1...	Сохранение в ячейку 1...
+Saving to Slot 2...	Сохранение в ячейку 2...
