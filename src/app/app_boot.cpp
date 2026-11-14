@@ -19,6 +19,7 @@
 #include "render/texture_registry.h"
 #include "script/field_host.h"
 #include "ui/ps1_font.h"
+#include "ui/ru_ui.h"
 
 namespace oc::app {
 
@@ -148,6 +149,7 @@ void App::init_vfs() {
     if (with_mods()) mods.apply(files, render::mod_art(config.art_mode));
     else for (vfs::Mod& mod : mods.mods()) mod.enabled = false;
   }
+  ui::ru_ui::load(files);
   // Engine features follow the mods enabled at launch (like game data, a later Mods tab change waits for the next launch). A run without
   // mods has the [Features] lines of its own ini only (a route that tests a feature turns it on there).
   {
