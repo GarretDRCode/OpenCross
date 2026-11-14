@@ -275,7 +275,7 @@ struct BattleResults::Impl {
   void prepare_all() {
     prepare(U"0123456789+-/ ");
     for (int k = 0; k < 7; ++k) prepare(stat_label(k)), prepare(label(11 + static_cast<u64>(k)));
-    for (u64 key : {26ull, 27ull, 28ull, 30ull, 31ull, 32ull, 33ull, 35ull, 0x10005ull, 0x10006ull}) prepare(label(key));
+    for (u64 key : {18ull, 21ull, 23ull, 25ull, 26ull, 27ull, 28ull, 30ull, 31ull, 32ull, 33ull, 34ull, 35ull, 0x10005ull, 0x10006ull}) prepare(label(key));
     prepare(U"G");
     for (const Row& row : rows) prepare(row.name);
     for (const Drop& drop : drops) prepare(drop.name);
