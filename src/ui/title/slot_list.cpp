@@ -340,8 +340,9 @@ void SlotList::draw(DrawList& dl, UiKit& kit) const {
   if (phase_ != Phase::Files) {
     frame(86, sl::kMsgX, sl::kMsgY);
     auto line = [&](float x, float y, const std::u32string& str) {
-      if (ink) label(x + 1.5f, y + 2.5f, str, sl::kMsgScale, sl::kMsgWidth);
-      else txt(x, y, str, white, 1.0f);
+      const std::u32string translated = ru_ui::u32(str, lang_);
+      if (ink) label(x + 1.5f, y + 2.5f, translated, sl::kMsgScale, sl::kMsgWidth);
+      else txt(x, y, translated, white, 1.0f);
     };
     if (phase_ == Phase::NoData) {
       if (card_ == 0) line(146, 336, U"No save data in OpenCross.");
