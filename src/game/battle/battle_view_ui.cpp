@@ -22,6 +22,7 @@
 #include "import/text.h"
 #include "platform/keymap.h"
 #include "platform/pad_remap.h"
+#include "ui/ru_ui.h"
 #include "render/texture.h"
 
 namespace oc::game {
@@ -164,7 +165,8 @@ std::string elem_label(const std::string& name, const data::ElemRec& elem, int r
 // y * kRowScale + the slot's y offset, both offsets scaled; then the style's own rule applies: a line loop (styles 1, 3, 0x83, 0xB8), a
 // shrink to a width budget that moves the baseline by the lost height (0x80 54 px, 0x81 102 px centred, 0x85 86 px centred, 0x86 180 canvas
 // px, 0x84 256 px or centred inside them). Style 0xB8 (the Dopplegang list) shrinks only its first entry, to 578 canvas px.
-void BattleView::btext(int flags, const std::u32string& text, float x, float y, u32 colour) {
+void BattleView::btext(int flags, const std::u32string& original, float x, float y, u32 colour) {
+  const std::u32string text = ui::ru_ui::u32(original, lang_);
   namespace ft = ui::font;
   if (text.empty()) return;
   const int style = flags & 0xFF;
