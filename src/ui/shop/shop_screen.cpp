@@ -20,6 +20,7 @@
 #include "ui/menu/menu_common.h"
 #include "ui/menu/ps1_art.h"
 #include "ui/ps1_font.h"
+#include "ui/ru_ui.h"
 
 namespace oc::ui {
 
@@ -647,7 +648,8 @@ struct ShopScreen::Impl {
   // 0x808080; Right (0x82). `align_override` >= 0 replaces the style's alignment (only where OpenCross keeps its own geometry).
   // Language index, 5 = JP.
   int lang_index() const { return static_cast<int>(lang); }
-  void RT(int style, float x, float y, const std::u32string& str, u32 col = 0x808080, int align_override = -1) {
+  void RT(int style, float x, float y, const std::u32string& original, u32 col = 0x808080, int align_override = -1) {
+    const std::u32string str = ru_ui::u32(original, lang);
     if (str.empty()) return;
     const int lang_i = std::clamp(lang_index(), 0, 5);
     const bool jp = lang_i == 5;
