@@ -16,6 +16,7 @@
 #include "render/imgui_mods_tab.h"
 #include "script/field_host.h"
 #include "script/field_vm.h"
+#include "ui/ru_ui.h"
 
 namespace oc::app {
 
@@ -62,6 +63,7 @@ void App::apply_art_mode() {
   if (world_ok) world.drop_room_prefetch();
   const std::uint32_t mod_gen = files.generation();
   mods.apply(files, render::mod_art(config.art_mode));
+  ui::ru_ui::load(files);
   const bool mods_changed = files.generation() != mod_gen;
   if (mods_changed) load_shader_looks();
   files.set_hd_mode(hd);
