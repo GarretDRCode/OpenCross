@@ -1039,7 +1039,7 @@ struct ShopScreen::Impl {
       static const char* const kLbl[5] = {"(Consum.)", "(consommable)", "(consumabile)", "(Einweg)", "(consumible)"};
       static const float kY[5] = {214, 219, 219, 217, 216.5f}, kS[5] = {0.335f, 0.3f, 0.3f, 0.306f, 0.33f};
       const int lang_idx = std::clamp(lang_index(), 0, 4);
-      const std::u32string label = utf32(kLbl[lang_idx]);
+      const std::u32string label = ru_ui::u32(utf32(kLbl[lang_idx]), lang);
       fonts.prepare(font::kBn, label);
       Cmd cmd;
       cmd.kind = Cmd::Text;
