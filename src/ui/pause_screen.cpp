@@ -4,6 +4,7 @@
 
 #include "core/log.h"
 #include "render/camera.h"
+#include "ui/ru_ui.h"
 
 namespace oc::ui {
 
@@ -100,8 +101,8 @@ int PauseScreen::input(int dx, int dy, bool toggle, bool close) {
 
 std::u32string PauseScreen::ui_text(int id, const char32_t* fallback) {
   if (const import::TextTable* table = lt_.table("ui_pausemenu"))
-    if (const std::string* str = table->get(static_cast<u64>(id), lang_); str && !str->empty()) return import::utf8_to_u32(*str);
-  return fallback;
+    if (const std::string* str = table->get(static_cast<u64>(id), lang_); str && !str->empty()) return ru_ui::u32(import::utf8_to_u32(*str), lang_);
+  return ru_ui::u32(fallback, lang_);
 }
 
 // The title bar is the art at its natural size; the option bar is sized to its text plus the two arrows tucked inside its right end
