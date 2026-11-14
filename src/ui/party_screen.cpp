@@ -14,6 +14,7 @@
 #include "ui/lowres.h"
 #include "ui/menu/game_state.h"
 #include "ui/ps1_font.h"
+#include "ui/ru_ui.h"
 #include "ui/title/nav.h"
 
 namespace oc::ui {
@@ -239,7 +240,8 @@ struct PartyScreen::Impl {
   // draw() runs the screen twice: a preparing pass (loads every texture, prepares every glyph: neither may happen between the sprite
   // batch's begin / end) and the drawing pass.
   bool prep = false;
-  void draw_text(int slot, float mul, float x, float y, const std::u32string& str, u32 col, u16 c16, int kB, bool shadow, float dy_canvas = 0) {
+  void draw_text(int slot, float mul, float x, float y, const std::u32string& original, u32 col, u16 c16, int kB, bool shadow, float dy_canvas = 0) {
+    const std::u32string str = ru_ui::u32(original, lang);
     if (str.empty()) return;
     if (prep) return fonts.prepare(slot, str);
     const render::FaceId face_id = fonts.face(slot);
@@ -483,7 +485,7 @@ void PartyScreen::Impl::draw_screen() {
   // The party row's y (raised into the shared panel while there is a reserve) and the reserve row's.
   const float party_y = reserve_on ? 0xA5 + kPanelShift : 0xA5;
   const int lang_index = static_cast<int>(lang);
-  const std::u32string reserve_label = kReserveLabel[std::clamp(lang_index, 0, 5)];
+  const std::u32string reserve_label = ru_ui::u32(kReserveLabel[std::clamp(lang_index, 0, 5)], lang);
   const int reserve_font = jp() ? font::kKb : font::kBn;
 
   // The PS1 picture under the lists: the background sprite 640 x 220 at (0, 0), bg.tim through the texture window (0, 0, 64, 32).
