@@ -20,6 +20,7 @@
 #include "import/battle_stage.h"
 #include "import/model.h"
 #include "import/room.h"
+#include "import/room_effects.h"
 #include "render/model_tiles.h"
 #include "render/stage_tiles.h"
 #include "render/texture_registry.h"
@@ -65,13 +66,28 @@ void dump_stage_asset(const assets::StageAsset& st, const std::string& group) {
   }
 }
 
+void dump_sheet(const assets::SpriteSheet& sh) {
+  u32 w = 0, h = 0;
+  std::vector<u8> img;
+  if (!effects::sheet_atlas_image(sh, w, h, img)) return;
+  tr::dump_forced(effects::effect_sheet_key(sh, w, h, img.data()), w, h, img.data());
+}
+
 void dump_sheets(const assets::RoomEffects& fx) {
-  for (const assets::SpriteSheet& sh : fx.sheets) {
-    u32 w = 0, h = 0;
-    std::vector<u8> img;
-    if (!effects::sheet_atlas_image(sh, w, h, img)) continue;
-    tr::dump_forced(effects::effect_sheet_key(sh, w, h, img.data()), w, h, img.data());
-  }
+  for (const assets::SpriteSheet& sh : fx.sheets) dump_sheet(sh);
+}
+
+// Lens sprites are embedded in each battle stage's .prd / .ctd, unlike the shared battle-effect
+// packs dumped by phase_effects(). Use the SAME sheet key and flattened sprite order as the
+// runtime (GpuEffects::load_more): the exported PNG then works as a mod replacement unchanged.
+void dump_stage_lens_sheets(const assets::RoomEffects& fx) {
+  std::set<std::string> names{"lenz"};
+  for (const assets::Emitter& emitter : fx.emitters)
+    for (const assets::EffectOp& op : emitter.ops)
+      if (const auto* sprite = std::get_if<assets::FxSprite>(&op.arg); sprite && sprite->type == 21)
+        names.insert(sprite->name);
+  for (const assets::SpriteSheet& sh : fx.sheets)
+    if (names.contains(sh.name)) dump_sheet(sh);
 }
 
 // The key hashes the decoded pixels (room models); the file holds `best` (the 4x image when there is one) without the STP alpha
@@ -128,6 +144,10 @@ u32 phase_stages(const vfs::Vfs& archive, TextureDumpProgress& progress) {
       if (auto st = import::load_stage(*prd, ctd)) {
         render::bake_object_textures(*st);
         dump_stage_asset(*st, "battle_stage/" + stem);
+        // Use the exact stage FX parser used at runtime so the sprite hash / atlas layout match.
+        import::Vram empty;
+        const assets::RoomEffects fx = import::load_battle_effects(*prd, ctd, empty, {});
+        dump_stage_lens_sheets(fx);
       } else {
         ++failed;
       }

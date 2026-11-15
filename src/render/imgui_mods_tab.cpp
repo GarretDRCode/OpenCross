@@ -265,7 +265,7 @@ void draw_textures_button(platform::Config& cfg, bool* settings_dirty) {
     if (ImGui::BeginTable("dump_kinds", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings)) {
       ImGui::TableNextColumn();
       settings |= ImGui::Checkbox("Battle stages", &cfg.dump_stages);
-      tip("The battle stage (floor and scenery) textures.");
+      tip("The battle stage (floor and scenery) textures, plus the stage's lens flare (lenz) sprites under effects/lenz/.");
       ImGui::TableNextColumn();
       settings |= ImGui::Checkbox("Title", &cfg.dump_title);
       tip("The title scene textures.");

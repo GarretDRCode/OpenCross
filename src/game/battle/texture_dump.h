@@ -1,5 +1,5 @@
 #pragma once
-// "Dump all textures": loads every texture that is not a whole file in the archives headlessly (battle stages, the title, battle effect packs,
+// "Dump all textures": loads every texture that is not a whole file in the archives headlessly (battle stages including lens flares, the title, battle effect packs,
 // every room's effect sheets / mesh effects / room models, every battle and field model, every weapon pack part) and writes it through render::texture_registry::dump_forced.
 // No GPU: it only needs decoded images, so it runs on a worker thread
 // (TextureDumpJob, started by the Mods tab button) or blocking from `occ dump-textures`. It reads the shipped archives through its own Vfs (no mods).
