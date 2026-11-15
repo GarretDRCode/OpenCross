@@ -615,6 +615,15 @@ void MainMenu::Impl::build_grid() {
   auto left_cursor = [&](float x, float y, int alpha) {
     const int ph = frames % 96;
     const int pulse = 0x90 + (ph < 48 ? ph * 2 : (95 - ph) * 2);
+    // Mirror the same HD cursor sprite as the right-hand list's tri(). It has smooth diagonal edges;
+    // the old twelve-rectangle approximation was visibly blocky at high render resolutions.
+    if (!ps1_screen() && cursor_tex && cursor_tex->set) {
+      const int r = std::min(255, (pulse >> 1) * 255 / 128);
+      const int g = std::min(255, ((pulse - 0x80) >> 1) * 255 / 128);
+      Img(cursor_tex, PX(x), PY(y), PX(23), PY(11), 1, 0, 0, 1, rgb(r, g, g, alpha));
+      return;
+    }
+    // Preserve the original PS1-resolution triangle when that rendering mode is selected.
     const int g = std::min(255, (pulse - 0x80) * 2);
     for (int i = 0; i < 12; ++i) {
       const float width_factor = 1.0f - std::fabs(static_cast<float>(i) + 0.5f - 6.0f) / 6.0f;
