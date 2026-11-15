@@ -448,6 +448,7 @@ void App::init_menus() {
       menu.set_custom_names(&flow.machine().custom_names());
       menu.set_saved_name_lookup([this](const save::SaveSlot& data, const std::map<int, std::u32string>& ext_names, int id) { return flow.saved_name(data, ext_names, id); });
       menu.set_mode(art);
+      menu.set_button_prompts(config.button_prompts);
       menu.set_portrait_set(config.portraits);
       menu.set_sfx(ui_sfx);
       menu.set_sfx_layer([this](int id, u32 mask) {
@@ -539,6 +540,7 @@ void App::init_battle() {
       battle.set_bgm_remastered(config.bgm_source != "original");
       battle.set_auto(config.debug_battle_auto);
       battle.set_language(lang);
+      battle.set_button_prompts(config.button_prompts);
     } else {
       log::warn("battle view unavailable; field encounters will be skipped");
     }

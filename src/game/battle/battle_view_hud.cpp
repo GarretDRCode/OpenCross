@@ -15,6 +15,7 @@
 #include "import/text.h"
 #include "import/tim.h"
 #include "ui/localized_path.h"
+#include "ui/menu/ps1_art.h"
 namespace oc::game {
 
 using namespace bv;
@@ -174,6 +175,26 @@ void BattleView::load_hud_art(const vfs::Vfs& vfs) {
   // element list plate (subtractive base + frame, 152 x 56); target info window (subtractive, 96 x 48); item name plate.
   png(hud_[kHOsak], ui::localized_path(vfs, "hd/battle/shapes/battle-osak-010.png", lang_).c_str());
   png(hud_[kHPad], "ui/gamepad.png");
+  // Crop the PlayStation Triangle from the disc menu glyph (frame 0x7F).
+  // This is an independent HUD icon, not an input-device detection shortcut.
+  if (const ui::ps1::Rgba icon = ui::ps1::sheet_frame(vfs, 0x7F); icon) {
+    u32 left = icon.w, top = icon.h, right = 0, bottom = 0;
+    for (u32 y = 0; y < icon.h; ++y)
+      for (u32 x = 0; x < icon.w; ++x)
+        if (icon.at(x, y)[3] != 0) {
+          left = std::min(left, x), top = std::min(top, y);
+          right = std::max(right, x + 1), bottom = std::max(bottom, y + 1);
+        }
+    if (right > left && bottom > top) {
+      render::DecodedImage cropped;
+      cropped.width = right - left, cropped.height = bottom - top;
+      cropped.rgba.resize(static_cast<size_t>(cropped.width) * cropped.height * 4);
+      for (u32 y = 0; y < cropped.height; ++y)
+        std::copy_n(icon.at(left, top + y), static_cast<size_t>(cropped.width) * 4,
+                    cropped.rgba.data() + static_cast<size_t>(y) * cropped.width * 4);
+      upload(hud_[kHPs], cropped);
+    }
+  }
   png(hud_[kHCam], "hd/menu/menutim/camera.png");
   png(hud_[kHWin4Base], "hd/battle/shapes/battle-win4-large-base.png");
   png(hud_[kHWin4Frame], "hd/battle/shapes/battle-win4-large-frame.png");

@@ -326,6 +326,7 @@ void MainMenu::set_rules(const MenuRules* rules) { impl_->rules = rules; }
 void MainMenu::set_custom_names(const std::map<int, std::u32string>* names) { impl_->custom_names = names; }
 void MainMenu::set_saved_name_lookup(SavedNameLookup lookup) { impl_->saved_name = std::move(lookup); }
 void MainMenu::set_mode(ArtMode mode) { impl_->mode = mode; }
+void MainMenu::set_button_prompts(platform::ButtonPromptStyle style) { impl_->button_prompts = style; }
 ArtMode MainMenu::mode() const { return impl_->mode; }
 void MainMenu::set_language(import::Lang lang) {
   impl_->lang = lang;

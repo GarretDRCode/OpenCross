@@ -60,6 +60,9 @@ struct ModSetting {
 enum class WindowMode { Windowed, Borderless, Exclusive };
 // [Video] Filter*: texture sampling of the 3D content (field actors, title scene) per art mode.
 enum class TexFilter { Nearest, Bilinear };
+// On-screen button icons only; input remains unchanged (including Xpadder keyboard emulation).
+enum class ButtonPromptStyle { Auto, Keyboard, Xbox, PlayStation };
+inline constexpr const char* kButtonPromptStyleNames[] = {"auto", "keyboard", "xbox", "playstation"};
 // [Shaders] Characters: the shading style of the characters (render/mesh_pipeline.h CharacterShading); the ini words in that order.
 enum class CharacterShader { Off, Realistic, Toon, Cel, Matcap };
 inline constexpr const char* kCharacterShaderNames[] = {"off", "realistic", "toon", "cel", "matcap"};
@@ -185,6 +188,7 @@ void bind_cheats(const Cheats* set);
 //            default RDE's 50); menus, shops, movies and play time keep normal speed. Both are off in room 386 and the battles launched
 //            from it. AutoSave: RDE's auto-save (card 1 slot 0) on every location change.
 //            Language: en fr it de es jp (dialogue text). Portraits: 2021 or 1999 (RDE face art set).
+//            ButtonPrompts: auto | keyboard | xbox | playstation. Glyphs only, no input remapping.
 //   [Mods]   one line per mod folder (ModSetting; folders not listed get the defaults, Esc overlay "Mods" tab). DumpStages / DumpTitle /
 //            DumpRooms / DumpModels / DumpEffects: which categories the Mods tab "Dump all textures" button writes (battle stage + title 3D
 //            scenes; room 3D meshes + models; battle / field unit models; effect sprite sheets + effect meshes - large, off by default).
@@ -264,6 +268,7 @@ struct Config {
   bool fast_mode = false;
   bool slow_mode = false;
   bool auto_save = true;
+  ButtonPromptStyle button_prompts = ButtonPromptStyle::Auto;
   // [Game] CameraRelative: field movement follows the camera (up = away from it on the floor) instead of the room's control yaw.
   bool camera_relative = false;
   int fast_rate = 0;

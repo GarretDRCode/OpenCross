@@ -54,6 +54,7 @@
 #include "render/particles.h"
 #include "game/battle/battle_pose.h"
 #include "game/battle/battle_seq.h"
+#include "platform/config.h"
 #include "platform/window.h"
 #include "render/camera.h"
 #include "render/mesh_pipeline.h"
@@ -179,6 +180,7 @@ class BattleView {
   }
   // Element descriptions (sysmes 0x1A rows) of the element menu.
   void set_language(import::Lang lang) { lang_ = lang; }
+  void set_button_prompts(platform::ButtonPromptStyle style) { button_prompts_ = style; }
   bool set_bgm_remastered(bool on) { return audio_.set_remastered(on); }
   // [Debug] BattleAuto: every turn the first ready PC attacks the first enemy with a fierce hit (chain of one), and the result page and
   // battle-script message windows confirm themselves (headless runs).
@@ -1250,6 +1252,7 @@ class BattleView {
   ui::font::FontSet fonts_;
   // Keyboard glyphs after a key press, pad glyphs after pad input.
   bool kb_mode_ = false;
+  platform::ButtonPromptStyle button_prompts_ = platform::ButtonPromptStyle::Auto;
   struct Tex {
     render::Texture tex;
     render::TexRef set;
@@ -1270,7 +1273,7 @@ class BattleView {
   // (waku-03), the red cursor diamonds (battle_11), the status icons (battle_34), the window skin halves (battle_04 STP / opaque texels) and
   // the script window's page / end cursor (battle_86, 8 x 16 PS1 px cells), the seven Chrono Cross colour row dots (16 x 16) and the party
   // panel's colour status corners (waku-04..09, one per colour index).
-  enum HudTex { kHWakuBase, kHWaku, kHWakuAct, kHGg1, kHGg2, kHField, kHDigits, kHCursor, kHRing, kHOsak, kHPad, kHCam, kHWin4Base, kHWin4Frame,
+  enum HudTex { kHWakuBase, kHWaku, kHWakuAct, kHGg1, kHGg2, kHField, kHDigits, kHCursor, kHRing, kHOsak, kHPad, kHPs, kHCam, kHWin4Base, kHWin4Frame,
                 kHWaku03, kHKeys, kHDiamond, kHStatus, kHSkinSemi, kHSkinOpaque, kHPageCur, kHColourDot, kHWakuColour = kHColourDot + 7,
                 kHCount = kHWakuColour + 6 };
   std::array<Tex, kHCount> hud_;

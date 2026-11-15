@@ -1628,12 +1628,16 @@ void BattleView::build_target_ui(bool cam_hint) {
     const float hx = 0xF6, hy = 0xE;
     // Keyboard: the key cap of the Triangle (Menu) key.
     const int menu_button = platform::map_source(platform::active_map(), 3) & 7;
-    if (kb_mode_) {
+    const bool keyboard_prompts = button_prompts_ == platform::ButtonPromptStyle::Keyboard ||
+                                  (button_prompts_ == platform::ButtonPromptStyle::Auto && kb_mode_);
+    if (keyboard_prompts) {
       const int cell = platform::keyboard_cell(platform::action_vk(platform::button_action(menu_button)));
       add_img(hud_[kHKeys], hx * kPs1Px, hy * kRowScale, 12 * kPs1Px, 12 * kRowScale, static_cast<float>(cell & 15) / 16.0f, static_cast<float>(cell >> 4) / 7.0f,
               static_cast<float>((cell & 15) + 1) / 16.0f, static_cast<float>((cell >> 4) + 1) / 7.0f);
+    } else if (button_prompts_ == platform::ButtonPromptStyle::PlayStation && hud_[kHPs].set) {
+      add_img(hud_[kHPs], hx * kPs1Px, hy * kRowScale, 12 * kPs1Px, 12 * kRowScale);
     } else {
-      // Pad: the glyph of the button on the Triangle function (Y by default: gamepad.png column 10, row 1).
+      // Xbox / auto pad: the glyph of the button on the Triangle function (Y by default: gamepad.png column 10, row 1).
       const int cell = platform::pad_glyph_cell(menu_button);
       const float col = static_cast<float>(cell % 13), row = static_cast<float>(cell / 13 * 2 + 1);
       add_img(hud_[kHPad], hx * kPs1Px, hy * kRowScale, 12 * kPs1Px, 12 * kRowScale, col / 13.0f, row / 4.0f, (col + 1.0f) / 13.0f, (row + 1.0f) / 4.0f);

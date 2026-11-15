@@ -384,6 +384,9 @@ void App::field_frame() {
 
 // What the Esc options window changed this frame.
 void App::apply_options_change(const render::OptionsChange& change) {
+  // Live visual-only preference: no change to keyboard or gamepad input.
+  if (menu_ok) menu.set_button_prompts(config.button_prompts);
+  if (battle_ready) battle.set_button_prompts(config.button_prompts);
   if (change.quit) quit_requested = true;
   if (change.restart_game) restart_requested = true;
   if (change.vsync) ctx.set_vsync(config.vsync);

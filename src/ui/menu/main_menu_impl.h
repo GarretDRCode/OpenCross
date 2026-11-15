@@ -132,6 +132,7 @@ struct MainMenu::Impl {
   MenuScreen open_target = MenuScreen::Main;
   // Last-used input device: false = gamepad glyphs, true = keyboard glyphs.
   bool kb_mode = false;
+  platform::ButtonPromptStyle button_prompts = platform::ButtonPromptStyle::Auto;
   // pick_for: 0 status, 1 grid, 2 equip.
   int main_cur = 0, mem_cur = 0, sub = 0, pick_cur = 0, pick_for = 0;
   int member = 0;

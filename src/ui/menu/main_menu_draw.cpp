@@ -532,11 +532,16 @@ void MainMenu::Impl::btn(float x, float y, int slot_index, u32 colour) {
 void MainMenu::Impl::glyph_button(float x, float y, int button, u32 colour, bool page_frames) {
   const size_t first = cmds.size();
   static const char* const atlas[6] = {"e", "f", "i", "g", "s", "j"};
-  if (ps1_screen()) {
+  const bool keyboard_prompts = button_prompts == platform::ButtonPromptStyle::Keyboard ||
+                                (button_prompts == platform::ButtonPromptStyle::Auto && kb_mode);
+  const bool playstation_prompts = button_prompts == platform::ButtonPromptStyle::PlayStation ||
+                                  (button_prompts == platform::ButtonPromptStyle::Auto && ps1_screen());
+  if (playstation_prompts) {
+    // The original PlayStation menu button symbols also work in HD art.
     const int frame = page_frames ? (button < 4 ? 0x44 + button : button < 8 ? 0x46 + button : 0x40 + button) : button < 8 ? 0x7C + button : 0x40 + button;
     if (Tex* tex = texs.ps1("ps1:sheet" + std::to_string(frame), [&] { return ps1::sheet_frame(*vfs, frame); }))
       Img(tex, PX(x - ps1::kSheetFrameOriginX), PY(y - ps1::kSheetFrameOriginY), PX(ps1::kSheetFrameW), PY(ps1::kSheetFrameH), 0, 0, 1, 1, colour);
-  } else if (kb_mode) {
+  } else if (keyboard_prompts) {
     if (Tex* tex = texs.load(std::string("ui/keyboard_") + atlas[std::clamp(lang_index(), 0, 5)] + ".png")) {
       const int cell = platform::keyboard_cell(button < 8 ? platform::action_vk(platform::button_action(button)) : button == 8 ? platform::kStartVk : platform::kSelectVk);
       Img(tex, PX(x), PY(y - 1.0f), PX(24), PY(24), static_cast<float>(cell & 15) / 16.0f, static_cast<float>(cell >> 4) / 7.0f,

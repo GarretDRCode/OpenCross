@@ -536,8 +536,17 @@ OptionsChange ImGuiLayer::general_tab(platform::Config& cfg) {
   if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
     tooltip("The keyboard shortcuts the game itself listens to (pad buttons follow the RDE layout). Esc (or holding the pad's Start) opens "
             "this window; the others work in the field and in battle.");
-  // One key per row.
   if (begin_rows("controls")) {
+    row("Button prompts", "Only changes icons in menus and battles; actual controls are unaffected. "
+                          "Auto follows the last input device. Force Xbox or PlayStation when using Xpadder.");
+    static const std::vector<std::string> kPrompts = {"Auto (last input)", "Keyboard", "Xbox", "PlayStation"};
+    int prompt = static_cast<int>(cfg.button_prompts);
+    if (combo("##buttonprompts", prompt, kPrompts)) {
+      cfg.button_prompts = static_cast<platform::ButtonPromptStyle>(prompt);
+      change.other = true;
+    }
+    // The rest of this section lists keyboard shortcuts.
+
     const char* keys[][2] = {{"Esc", "Settings (pad: hold Start; LB / RB switch its tabs)"},
                              {"Space", "Start: pause (pad: Start)"},
                              {"K", "Select: change the lead character; held in battle, hide the overlays (pad: Back / View)"},

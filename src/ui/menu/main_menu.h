@@ -16,6 +16,7 @@
 
 #include "data/tables.h"
 #include "import/text.h"
+#include "platform/config.h"
 #include "platform/window.h"
 #include "render/sprite_batch.h"
 #include "render/text_batch.h"
@@ -55,6 +56,7 @@ class MainMenu {
   void set_mode(ArtMode mode);
   ArtMode mode() const;
   void set_language(import::Lang lang);
+  void set_button_prompts(platform::ButtonPromptStyle style);
   // "2021" or "1999" (HD art; original art always uses the 1999 folder).
   void set_portrait_set(const std::string& set);
   // Save screen target: slots are read from / written to card 1 of `dat`; `out` is where save() writes it.
