@@ -50,6 +50,7 @@
 #include "import/room_fixes.h"
 #include "import/text.h"
 #include "net/presence.h"
+#include "platform/config.h"
 #include "platform/window.h"
 #include "script/field_host.h"
 #include "script/field_vm.h"
@@ -241,6 +242,8 @@ class FieldWorld final : public script::FieldHost {
   // force: re-read the art even if `hd` is unchanged (HD <-> Modded, mod list edits)
   void set_art_mode(bool hd, bool force = false);
   void set_language(import::Lang lang);
+  // Control on-screen button glyphs independently of physical input (Xpadder etc.).
+  void set_button_prompts(platform::ButtonPromptStyle style) { button_prompts_ = style; }
   // Audio: the BGM mixer and the SFX sink (both optional, not owned). Song ids go through audio/bgm_table.h.
   void set_audio(audio::Mixer* mixer, audio::Sfx* sfx);
   // [Audio] BgmSource: remastered = RDE .sab streams; original = the PS1 AKAO sequence (musicNNN + its bank) on our sequencer.
@@ -971,6 +974,7 @@ class FieldWorld final : public script::FieldHost {
   std::string portrait_set_ = "2021";
   // Button glyphs in the message windows: key caps after a key press, pad glyphs after a pad press.
   bool key_caps_ = false;
+  platform::ButtonPromptStyle button_prompts_ = platform::ButtonPromptStyle::Auto;
   ui::DialogueDemo* window_owned_by(int ent);
   void confirm_window(ui::DialogueDemo& box, int owner);
   bool any_window_open() const;

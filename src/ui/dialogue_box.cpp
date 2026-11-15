@@ -10,6 +10,7 @@
 #include "core/log.h"
 #include "platform/keymap.h"
 #include "platform/pad_remap.h"
+#include "ui/menu/ps1_art.h"
 #include "ui/ps1_font.h"
 #include "ui/ps1_window.h"
 
@@ -251,6 +252,35 @@ const render::TexRef* DialogueBox::button_sheet(const std::string& member) {
   return set;
 }
 
+// A cached icon from the original PlayStation menutest sheet, cropped to its visible pixels.
+const render::TexRef* DialogueBox::playstation_button_sheet(int frame) {
+  if (!vfs_ || !ctx_) return nullptr;
+  const std::string key = "ps1:dialogue-button:" + std::to_string(frame);
+  if (const auto it = button_sheets_.find(key); it != button_sheets_.end())
+    return it->second ? &it->second->set : nullptr;
+  const ps1::Rgba image = ps1::sheet_frame(*vfs_, frame);
+  if (!image) return nullptr;
+  u32 left = image.w, top = image.h, right = 0, bottom = 0;
+  for (u32 y = 0; y < image.h; ++y)
+    for (u32 x = 0; x < image.w; ++x)
+      if (image.at(x, y)[3] != 0) {
+        left = std::min(left, x), top = std::min(top, y);
+        right = std::max(right, x + 1), bottom = std::max(bottom, y + 1);
+      }
+  if (right <= left || bottom <= top) return nullptr;
+  const u32 width = right - left, height = bottom - top;
+  std::vector<u8> rgba(static_cast<size_t>(width) * height * 4);
+  for (u32 y = 0; y < height; ++y)
+    std::copy_n(image.at(left, top + y), static_cast<size_t>(width) * 4,
+                rgba.data() + static_cast<size_t>(y) * width * 4);
+  auto sheet = std::make_unique<Face>();
+  if (!sheet->tex.create(*ctx_, width, height, render::TextureFormat::Rgba8, rgba.data())) return nullptr;
+  sheet->set = render::TexRef(sheet->tex, linear_);
+  const render::TexRef* set = &sheet->set;
+  button_sheets_[key] = std::move(sheet);
+  return set;
+}
+
 // The button glyph of {key(n)} at canvas (x, y): the key cap of the bound key in keyboard style, else the pad glyph.
 void DialogueBox::draw_button(int key, float x, float y, float zoom, float alpha) {
   const ButtonArt art = button_art(key);
@@ -263,6 +293,19 @@ void DialogueBox::draw_button(int key, float x, float y, float zoom, float alpha
       sprites_->draw(*sheet, x * zoom, y * zoom + yo_, size * zoom, size * zoom, static_cast<float>(cell & 15) / 16.0f, static_cast<float>(cell >> 4) / 7.0f,
                      static_cast<float>((cell & 15) + 1) / 16.0f, static_cast<float>((cell >> 4) + 1) / 7.0f, colour);
     return;
+  }
+  if (playstation_caps_) {
+    int source = -1;
+    if (key >= 0 && key <= 3) source = platform::map_source(platform::active_map(), key) & 7;
+    else if (key == 8) source = 8;
+    if (source >= 0) {
+      const int frame = source < 8 ? 0x7C + source : 0x40 + source;
+      if (const render::TexRef* sheet = playstation_button_sheet(frame)) {
+        sprites_->draw(*sheet, x * zoom, y * zoom + yo_, size * zoom, size * zoom, 0, 0, 1, 1, colour);
+        return;
+      }
+    }
+    // No original PlayStation symbol for every d-pad direction: use its neutral directional icon.
   }
   if (art.pad_cell < 0) return;
   if (const render::TexRef* sheet = button_sheet("ui/gamepad.png")) {
@@ -1078,7 +1121,9 @@ void DialogueDemo::move_digit(int step, int shift) {
 void DialogueDemo::set_portrait(int id) { impl_->box.set_portrait(id); }
 void DialogueDemo::set_portrait_flags(bool on, bool left) { impl_->box.set_portrait_flags(on, left); }
 void DialogueDemo::set_skin_byte(int config_byte) { impl_->box.set_skin_byte(config_byte); }
-void DialogueDemo::set_key_caps(bool keyboard) { impl_->box.set_button_style(keyboard, static_cast<int>(impl_->lang)); }
+void DialogueDemo::set_key_caps(bool keyboard, platform::ButtonPromptStyle style) {
+  impl_->box.set_button_style(keyboard, static_cast<int>(impl_->lang), style);
+}
 int DialogueDemo::speaker() const { return impl_->last_speaker; }
 const std::string& DialogueDemo::text() const { return impl_->plain; }
 void DialogueDemo::set_portrait_set(const std::string& set) { impl_->box.set_portrait_set(set); }

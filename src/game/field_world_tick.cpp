@@ -671,21 +671,24 @@ void FieldWorld::update(const platform::Input& in, int ticks) {
   }
   if (std::any_of(in.pad_pressed.begin(), in.pad_pressed.end(), [](bool pressed) { return pressed; })) key_caps_ = false;
   if (std::any_of(in.key_pressed.begin(), in.key_pressed.end(), [](bool pressed) { return pressed; })) key_caps_ = true;
-  dialogue_.set_key_caps(key_caps_);
+  dialogue_.set_key_caps(key_caps_, button_prompts_);
   dialogue_.update(static_cast<float>(ticks) * text_seconds_per_tick_, text_pace_);
   for (auto& window : extra_win_) {
     if (!window.box) continue;
-    window.box->set_key_caps(key_caps_);
+    window.box->set_key_caps(key_caps_, button_prompts_);
     window.box->update(static_cast<float>(ticks) * text_seconds_per_tick_, text_pace_);
   }
   sync_mod_ui_windows();
   for (auto& window : mod_ui_win_) {
     if (!window.box) continue;
-    window.box->set_key_caps(key_caps_);
+    window.box->set_key_caps(key_caps_, button_prompts_);
     window.box->update(static_cast<float>(ticks) * text_seconds_per_tick_, text_pace_);
   }
   sync_panel_window();
-  if (panel_win_) panel_win_->update(static_cast<float>(ticks) * text_seconds_per_tick_, text_pace_);
+  if (panel_win_) {
+    panel_win_->set_key_caps(key_caps_, button_prompts_);
+    panel_win_->update(static_cast<float>(ticks) * text_seconds_per_tick_, text_pace_);
+  }
 
   remote_labels_.clear();
   local_label_.reset();

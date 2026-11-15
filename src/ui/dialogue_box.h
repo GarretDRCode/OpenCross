@@ -14,6 +14,7 @@
 
 #include "import/spritefont.h"
 #include "import/text.h"
+#include "platform/config.h"
 #include "platform/window.h"
 #include "render/camera.h"
 #include "render/sprite_batch.h"
@@ -82,10 +83,10 @@ class DialogueBox {
   int skin_index() const { return skin_idx_; }
   void set_portrait_set(std::string set);
   const std::string& portrait_set() const { return portrait_set_; }
-  // Button glyphs ({key(n)}): the key caps of the keyboard bindings (ui/keyboard_<e f i g s j>.png by `lang_index`) when `keyboard`, else
-  // the pad glyphs (ui/gamepad.png).
-  void set_button_style(bool keyboard, int lang_index) {
-    key_caps_ = keyboard;
+  // Inline {key(n)} glyphs honour the separate presentation preference, not just the last input.
+  void set_button_style(bool keyboard, int lang_index, platform::ButtonPromptStyle style = platform::ButtonPromptStyle::Auto) {
+    key_caps_ = style == platform::ButtonPromptStyle::Keyboard || (style == platform::ButtonPromptStyle::Auto && keyboard);
+    playstation_caps_ = style == platform::ButtonPromptStyle::PlayStation;
     key_cap_lang_ = lang_index;
   }
   // In-window choice (field MULTI_CHOICE): lines first..last of the message are the options; a cursor is drawn at the
@@ -238,8 +239,11 @@ class DialogueBox {
   // Button glyph sheets by member name, loaded on demand.
   std::map<std::string, std::unique_ptr<Face>> button_sheets_;
   bool key_caps_ = false;
+  bool playstation_caps_ = false;
   int key_cap_lang_ = 0;
   const render::TexRef* button_sheet(const std::string& member);
+  // Disc menu icon, cropped from its PS1 sheet frame and cached for dialogue hints.
+  const render::TexRef* playstation_button_sheet(int frame);
   void draw_button(int key, float x, float y, float zoom, float alpha);
   int choice_ = 0;
   int chosen_ = -1;
@@ -310,7 +314,7 @@ class DialogueDemo {
   void set_portrait_flags(bool on, bool left);
   void set_skin_byte(int config_byte);
   // Button glyphs as key caps (`keyboard`, the device the player used last) or pad glyphs; DialogueBox::set_button_style.
-  void set_key_caps(bool keyboard);
+  void set_key_caps(bool keyboard, platform::ButtonPromptStyle style = platform::ButtonPromptStyle::Auto);
   // Speaker id resolved for the open message (name tag or script speaker).
   int speaker() const;
   // Plain UTF-8 text of the last shown message (newlines / pages as spaces).

@@ -526,6 +526,7 @@ void App::init_field() {
     world.set_custom_names(&flow.machine().custom_names());
     world.set_name_store([this](int char_id, std::u32string name) { flow.machine().set_custom_name(char_id, std::move(name)); });
   }
+  world.set_button_prompts(config.button_prompts);
   world_ok = true;
 }
 
