@@ -25,12 +25,14 @@ namespace oc::game {
 using namespace bv;
 
 // ----------------------------------------------------------------------------------------------------------- update
-void BattleView::update(float dt, const platform::Input& in) {
+void BattleView::update(float dt, const platform::Input& in, float real_dt) {
   // The pause screen: nothing ticks (battle_view.h set_paused).
   if (paused_) return;
   if (trans_wait_ || trans_run_) update_transition(dt);
   // The transition holds the battle (the field freeze).
   if (!battle_ || trans_run_ || trans_wait_) return;
+  // dt can be multiplied by Fast Mode; the message reading time must not be.
+  system_plate_seconds_left_ = std::max(0.0f, system_plate_seconds_left_ - std::max(0.0f, real_dt >= 0.0f ? real_dt : dt));
   time_ += dt;
   // Dev: OC_DEV_VAR="0x448=1,..." writes script variables (byte offsets) once, after the slot-0 init pass: Fire Dragon
   // 453's damage budget (var 0x448, init = the unit's HP) at 1 makes the first hit start the henshin: `OC_DEV_VAR=0x448=1 opencross battleview 453`.
@@ -267,6 +269,8 @@ void BattleView::update(float dt, const platform::Input& in) {
     } else if (froze_ && presented_outcome() == battle::Outcome::Wiped) {
       froze_ = false;
       wipe_hold_ = kFrozenWipeHold;
+    } else if (plate_.open > 0 && system_plate_seconds_left_ > 0.0f) {
+      // A finishing blow can also steal an item: show its result before starting the outro.
     } else {
       begin_finish();
     }
@@ -399,8 +403,7 @@ void BattleView::execute(const battle::Command& cmd) {
     if (!versus_apply(form, true, &why)) log::warn("battle: Dopplegang pick refused: {}", why);
   }
   collect_events();
-  // A confirmed command closes the system plate.
-  plate_ = ScriptMsg{};
+  // Do not cut short a system message when the next command is confirmed.
   chain_.clear();
   // The engaged PC keeps its menu while it can still act; otherwise update() picks the next PC (next_pc_after).
   active_pc_ = cmd.actor;

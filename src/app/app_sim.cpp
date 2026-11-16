@@ -494,7 +494,7 @@ void App::advance(const platform::Input& raw, double dt, int ticks) {
       return;
     }
     apply_loop_speed(loop_speed.battle_factor, false);
-    battle.update(static_cast<float>(dt) * loop_speed.battle_factor, in);
+    battle.update(static_cast<float>(dt) * loop_speed.battle_factor, in, static_cast<float>(dt));
     if (battle.finished() && results_ok && !results_shown && battle.battle()) {
       results_shown = true;
       results.open(*battle.battle(), config.debug_battle);
@@ -592,7 +592,7 @@ void App::advance(const platform::Input& raw, double dt, int ticks) {
       return;
     }
     apply_loop_speed(loop_speed.battle_factor, false);
-    battle.update(static_cast<float>(dt) * loop_speed.battle_factor, in);
+    battle.update(static_cast<float>(dt) * loop_speed.battle_factor, in, static_cast<float>(dt));
     // A versus battle has no results screen and writes nothing back.
     if (battle.finished() && versus_running) finish_versus_battle();
     else if (battle.finished() && !(results_ok && battle.battle() && results.open(*battle.battle(), battle_scene))) finish_field_battle();

@@ -320,6 +320,7 @@ void BattleView::smsg_open(const ScriptMsgReq& req) {
     msg.ty = 0x2E;
   }
   msg.open = 1;
+  if (msg.sys) system_plate_seconds_left_ = kSystemPlateReadSeconds;
   route_events_.push_back("w" + std::to_string(req.msg));
   // Voices: voices/battle/<scene>/<msg>-<page>-<unit>.mp3.
   if (audio::VoicePlayer* voices = audio::VoicePlayer::instance(); voices && !req.sys) voices->battle_open(scene_id_, req.msg, actor);
@@ -443,7 +444,9 @@ void BattleView::tick_window(ScriptMsg& msg) {
     if (wend_frames >= 0) msg.wend = wend_frames + 1;
   }
   // {wend}: the page / window ends without the button.
-  if (msg.wend > 0 && --msg.wend == 0) {
+  // Keep the system plate until both its script timer and the real-time reading period expire.
+  // Hold at one tick while the real-time clock is running; other scripted windows are unchanged.
+  if (msg.wend > 0 && (msg.wend > 1 || !msg.sys || system_plate_seconds_left_ <= 0.0f) && --msg.wend == 0) {
     msg.wend = -1;
     msg.waits = 0;
     if (++msg.page >= msg.pages.size()) msg.open = -grow_frames;

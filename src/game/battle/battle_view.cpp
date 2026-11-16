@@ -118,6 +118,7 @@ void BattleView::unload_scene() {
   // must not leave a half-open window / pending position / engaged PC / menu-facing memory in the next scripted fight).
   smsg_ = ScriptMsg{};
   plate_ = ScriptMsg{};
+  system_plate_seconds_left_ = 0.0f;
   sys_pending_ = false;
   froze_ = false;
   wipe_hold_ = 0;

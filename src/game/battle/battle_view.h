@@ -238,7 +238,8 @@ class BattleView {
   bool fx_active() const { return fx_ != nullptr; }
   int fx_casts() const { return fx_casts_; }
 
-  void update(float dt, const platform::Input& in);
+  // real_dt is unscaled frame time: system messages must stay readable in Fast Mode.
+  void update(float dt, const platform::Input& in, float real_dt = -1.0f);
   // Pause screen over the battle: update() returns at once (no sim ticks, no effect ticks, no UI time), the draw shows the last tick's
   // state at interpolation alpha 1.
   void set_paused(bool on) { paused_ = on; if (on) alpha_ = 1.0f; }
@@ -1612,9 +1613,11 @@ class BattleView {
     bool sys = false;
   };
   // The event window (E0 / E2) and the system message plate: two windows, open and drawn independently. The plate holds nothing: the
-  // next command confirm or action start closes it, and the battle's end takes it down.
+  // plate stays readable for at least kSystemPlateReadSeconds of real time, even when Fast Mode or the next action runs.
   ScriptMsg smsg_;
   ScriptMsg plate_;
+  static constexpr float kSystemPlateReadSeconds = 3.0f;
+  float system_plate_seconds_left_ = 0.0f;
   // Pilfer's result: shown when the action ends.
   ScriptMsgReq sys_req_;
   bool sys_pending_ = false;

@@ -18,10 +18,9 @@ void BattleView::begin_group() {
   act_ = Act{};
   cast_hold_pc_ = -1;
   links_.clear();
-  // The action's setup: op 0x68 starts any timeline again; the next action closes the system plate; the command setup rewrites the
-  // acting list.
+  // The action's setup: op 0x68 starts any timeline again; the command setup rewrites the acting list.
+  // A system message survives a new action until its own timer and real-time reading period finish.
   bseq::Vm::reset_sequence();
-  plate_ = ScriptMsg{};
   script_actor_ = -1;
   act_.ev = std::move(queue_.front());
   queue_.pop_front();
@@ -688,8 +687,9 @@ void BattleView::begin_finish() {
   sync_shown();
   finish_ticks_ = 0;
   ui_ = Ui::Wait;
-  // The battle loop's teardown takes the system plate down, whatever its timer.
+  // The outro follows only after the minimum reading period; then clear the system plate.
   plate_ = ScriptMsg{};
+  system_plate_seconds_left_ = 0.0f;
   sys_pending_ = false;
   // The depth cue a last cast left on must not dim the victory / defeat camera.
   fx_fog_on_ = false;
