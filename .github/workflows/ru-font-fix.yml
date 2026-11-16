@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - ru-battle-results-font-fix
+      - ru-ui-opencross-0.6.7
     paths:
       - src/**
       - addons/Russian_UI/**
