@@ -20,6 +20,7 @@
 #include "render/texture.h"
 #include "ui/localized_path.h"
 #include "ui/ps1_font.h"
+#include "ui/ru_ui.h"
 
 namespace oc::game {
 
@@ -55,6 +56,9 @@ constexpr StatCol kStatCols[6] = {{12, 50, 32}, {7, 50, 44}, {56, 98, 32}, {56, 
 // UP markers (sheet levu frame 1) at X0 + kUpX[i] - 8 / y0 + kUpY[i] for i = HP, ATK, DEF, HIT, EVD, MAG, MDEF;
 // the sprite's own part offset is kUpDy.
 constexpr int kUpX[7] = {20, 20, 20, 68, 68, 116, 116}, kUpY[7] = {12, 24, 36, 24, 36, 24, 36}, kUpDy = 5;
+// Give the glow icons some breathing room beside longer Russian stat names.
+// The three left-column markers need a larger move; the others sit near their value columns.
+constexpr int kUpRightShift[7] = {9, 9, 9, 5, 5, 5, 5};
 // Stat label keys in the shared message text.
 const char* kStatJp[7] = {"ＨＰ", "腕力", "耐久力", "正確さ", "身軽さ", "魔力", "抗魔"};
 const char* kStatEn[7] = {"HP", "STR.", "RES.", "ACC.", "AGI.", "MAG.", "M.RES"};
@@ -346,7 +350,7 @@ struct BattleResults::Impl {
     // sprite at X0 + kUpX[i] - 8, y0 + kUpY[i] + kUpDy with i = HP, ATK, DEF, HIT, EVD, MAG, MDEF
     if (after)
       for (int i = 0; i < 7; ++i)
-        if (row.gain[static_cast<size_t>(i)] != 0) draw_up(x0 + static_cast<float>(kUpX[i] - 8), y0 + static_cast<float>(kUpY[i] + kUpDy));
+        if (row.gain[static_cast<size_t>(i)] != 0) draw_up(x0 + static_cast<float>(kUpX[i] - 8 + kUpRightShift[i]), y0 + static_cast<float>(kUpY[i] + kUpDy));
     // element-grid thumbnail: gg dots at X0 + 0x66 + 4 grid_row, y0 + 6 + 2 grid_col for every occupied cell; bright up to the gauge level
     for (int grid_row = 0; grid_row < data::kGridRows; ++grid_row)
       for (int grid_col = 0; grid_col < data::kGridCols; ++grid_col) {
@@ -796,6 +800,10 @@ bool BattleResults::open(const battle::Battle& finished, int scene_id) {
     if (!row.present) continue;
     row.portrait = data::menu_form(member.char_id, member.kind >= 0 ? member.kind : member.char_id);
     row.name = import::utf8_to_u32(member.name);
+    // The Graveyard battle shows Kid as "Girl" until her identity is learned. This is a
+    // UI alias, not a player-entered name: translate it here without changing save/battle data.
+    if (scene_id == data::kUnnamedKidScene && member.char_id == data::kKid)
+      row.name = ui::ru_ui::u32(row.name, impl.lang);
     row.hp = unit.hp;
     row.max_hp = member.stat[0];
     row.stat = member.stat;

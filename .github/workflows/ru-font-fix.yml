@@ -78,6 +78,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Russian_UI-mod
-          path: addons/Russian_UI/ui/ru_ui.tsv
+          path: addons/Russian_UI/
           if-no-files-found: error
           retention-days: 30
