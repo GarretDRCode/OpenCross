@@ -96,8 +96,10 @@ struct Motion {
   // follower AI: run clip
   bool running = false;
   int stuck = 0;
-  // position written directly (no wall collision): formation walks of the party
+  // position written directly (no wall collision, the walk triangle left as it is): formation walks of the party
   bool direct = false;
+  // a direct walk that ends seated on the walk-mesh floor (84 / DF); the 86 regroup ends at its target height instead
+  bool seat = true;
   // formation walks (84 / DF): facing written on arrival, -1 = none
   int final_facing = -1;
   // script slot of the formation op's caller: its flag gates that facing
@@ -114,14 +116,16 @@ struct Ent {
   int pc_slot = -1;
   // a script (or the spawn) positioned it
   bool placed = false;
-  // place_party_spawn put it on the leader's spot (settle_spawned_followers)
-  bool spawned_on_leader = false;
   // bind_party_entity set kInactive because its party slot is empty (cleared when the slot is filled again)
   bool slot_inactive = false;
   // SETUP_DIALOG_WINDOW (62) x, y, cols, lines, flags: kept per entity
   std::array<int, 5> win{};
   // ran UPDATE_CHARACTER (0A / 0B) this tick: only then does the party-follow logic move a follower
   bool updating = false;
+  // the follow rules took this member this tick: the terrain push leaves it alone
+  bool followed = false;
+  // the trail entry a walk to a push tile aims at, then the entry its replay writes next
+  int trail_index = 0;
   // SET_POSITION_XYZ: the height is script-controlled, not snapped to the walk mesh
   bool y_free = false;
   Motion motion;
@@ -480,15 +484,13 @@ class FieldWorld final : public script::FieldHost {
   // The ordering-table slab every field drawer honours (layers, shadows, actor faces, effect quads): only content with lo < slot <= hi is
   // drawn. The host draws the deep part (ot, inf], warps it, then the near part (-inf, ot]. Reset to everything after use.
   void set_draw_slab(float lo, float hi);
-  // [Enhancements] SmoothEffectRings
-  void set_smooth_rings(bool on) { smooth_rings_ = on; }
   // [Enhancements] Lighting: actors cast their silhouette, as if lit from straight above.
   void set_cast_shadows(bool on) { cast_shadows_ = on; }
   // [Game] CameraRelative: the pad / arrow headings turn with the room camera (pad_heading) instead of the control yaw (op 63).
   void set_camera_relative(bool on) { camera_relative_ = on; }
   // [Shaders] the character shaders: the shading of the field actors.
   void set_character_shading(render::CharacterShading shading) { character_shading_ = shading; }
-  // [Enhancements] MenuModelsInField: characters are drawn with their menu model, posed by their field model (game/menu_rig.h).
+  // HD models in fields: characters are drawn with their menu model, posed by their field model (game/menu_rig.h).
   void set_menu_models(bool on) { menu_models_ = on; }
   // Draws the frame's shadow tiles: before anything of the frame needs depth (ShadowPipeline::begin_tiles).
   void prepare_shadows(const render::Frame& frame, float alpha);
@@ -714,7 +716,7 @@ class FieldWorld final : public script::FieldHost {
   void set_controlled_entity(int ent) override;
   void shake(int x, int y, int ticks) override;
   void formation(u16 key, std::span<const s32> args) override;
-  void walk_party_member(int slot, float x, float z, int final_facing = -1, int gate_slot = 0);
+  void walk_party_member(int slot, float x, float z, int final_facing = -1, int gate_slot = 0, bool to_floor = true);
   void party_v_spot(int slot, float lx, float lz, int heading, float& x, float& z) const;
   bool formation_done() override;
   bool follow_wait() override;
@@ -845,14 +847,12 @@ class FieldWorld final : public script::FieldHost {
   void step_motions();
   void step_player();
   void step_followers();
-  // walk speed of a pad-controlled or party-following entity (its script speed or the default), doubled by the run speed cheat
+  // walk speed of a pad-controlled or party-following entity: its script speed or the default
   int party_speed(int ent) const;
   // follow rule 1 (dL < 80) for party slot 1 / 2: one step toward the point 128 units from the leader (free step while it lands on the
   // mesh, else the probe / slide step, else stand)
   // ent_override: a non-party entity running op 0A
-  void follower_back_off(int slot, bool other_side = false, int ent_override = -1);
-  // load: followers stacked on the leader's spawn spot walk out by rule 1 before the first frame
-  void settle_spawned_followers();
+  void follower_back_off(int slot, int ent_override = -1);
   void step_triggers();
   void step_visuals();
   // the off-screen test of every model entity
@@ -994,30 +994,33 @@ class FieldWorld final : public script::FieldHost {
   std::map<int, ModelSource> model_sources_;
   // by character id, kept across rooms
   std::map<int, std::shared_ptr<ModelHandle>> char_models_;
-  // [Enhancements] MenuModelsInField, by battle model (the model byte for a character): the detailed body (a character's menu model, an
-  // NPC's battle model) and how it follows a field model with skeleton `skeleton` (texture registry generation `generation`). No body =
-  // drawn with the field model (no detailed body, or the skeletons do not match).
+  // HD models in fields, by battle model (the model byte for a character) and field mesh (WornModel::field_mesh): the detailed
+  // body (a character's menu model, an NPC's battle model) and how it follows a field model with skeleton `skeleton` (texture registry
+  // generation `generation`). No body = drawn with the field model (no detailed body, or the skeletons do not match).
   struct MenuBody {
     std::shared_ptr<ModelHandle> body;
     assets::Skeleton skeleton;
     unsigned generation = 0;
     MenuRig rig;
   };
-  std::map<int, MenuBody> menu_bodies_;
+  std::map<std::pair<int, int>, MenuBody> menu_bodies_;
   bool menu_models_ = false;
   std::vector<render::Mat4> menu_palette_;
   // The battle model whose detailed body a model is drawn with (worn_body), -1 = none; by model, for the models that are not in
   // char_models_ (a room's own copy of a character, an NPC's own model, a model from elsewhere).
+  // field_mesh: which of a story NPC's field meshes the model is (its game::npc_bodies entry; one battle model may stand for several, each
+  // with its own height), -1 for a character's.
   struct WornModel {
     std::weak_ptr<ModelHandle> model;
     int body = -1;
+    int field_mesh = -1;
   };
   std::map<const ModelHandle*, WornModel> worn_models_;
   // The field skeleton of every model byte up to the last menu model, in the art mode `field_skeletons_hd_` (read on first need).
   std::vector<std::optional<assets::Skeleton>> field_skeletons_;
   bool field_skeletons_hd_ = false;
-  int worn_body(const std::shared_ptr<ModelHandle>& model);
-  // With MenuModelsInField, the menu body `actor` is drawn with (null = its own model): `palette` (the actor's) becomes the menu model's
+  WornModel worn_body(const std::shared_ptr<ModelHandle>& model);
+  // With HD models in fields, the menu body `actor` is drawn with (null = its own model): `palette` (the actor's) becomes the menu model's
   // and its size is folded into `model`.
   const MenuBody* dress(const Actor& actor, std::vector<render::Mat4>& palette, render::Mat4& model);
   struct PrefetchedCharacter {
@@ -1093,11 +1096,13 @@ class FieldWorld final : public script::FieldHost {
   int follow_hold_ticks_ = 0;
   // Follower trails (2 rings x 0x80 entries). Ring 0 = leader, ring 1 = first follower; one entry is
   // appended per tick in which that member actually moves.
-  // An entry keeps the position, the tile and its flags.
+  // An entry keeps the position, the tile and its flags, and the facing and the walk / run clip of the member it records.
   struct TrailEntry {
     float x = 0, y = 0, z = 0;
     int tri = -1;
     u32 flags = 0;
+    int facing = 0;
+    bool walking = false, running = false;
   };
   struct Trail {
     std::array<TrailEntry, 0x80> entries{};
@@ -1111,9 +1116,14 @@ class FieldWorld final : public script::FieldHost {
   int lead_start_facing_ = 0;
   bool lead_start_valid_ = false;
   bool lead_start_pushed_ = false;
+  // the leader stood on a push tile when the follow rules last ran: the terrain push moved him on from there
+  bool lead_carried_ = false;
+  // The run speed cheat: the leader between its two pad steps of the tick.
+  TrailEntry lead_middle_;
+  int lead_middle_facing_ = 0;
   // where the last pad step left the leader (not a scripted move)
   TrailEntry lead_pad_end_;
-  TrailEntry trail_entry_of(const Actor& actor) const;
+  TrailEntry trail_entry_of(const Actor& actor, bool walking = false, bool running = false) const;
   void trail_fill(int ring, const TrailEntry& entry);
   void trail_push(int ring, const TrailEntry& entry);
   void reset_trails();
@@ -1423,7 +1433,6 @@ class FieldWorld final : public script::FieldHost {
   } wave_;
   // op 92: background group key -> its tiles' semi-transparency bit
   std::map<u32, bool> bg_group_abe_;
-  bool smooth_rings_ = false;
   // set_draw_slab: ordering-table slab of the current draw pass
   float slab_min_ = -1e9f, slab_max_ = 1e9f;
   bool in_slab(float slot) const { return slot > slab_min_ && slot <= slab_max_; }

@@ -474,6 +474,9 @@ OptionsChange ImGuiLayer::general_tab(platform::Config& cfg) {
     row("Steam Connection", "Connects to Steam as the Radical Dreamers Edition, so Steam shows you playing it and its achievements unlock. Needs Steam running. "
                  "Turning it off stops achievements at once; Steam keeps showing you playing until OpenCross closes.");
     if (ImGui::Checkbox("##steam", &cfg.steam)) change.other = true;
+    row("Achievements", "OpenCross's own achievements, kept for you in achievements.txt next to opencross.ini and listed in the Achievements tab. "
+                        "They never change the game. Off: nothing is earned and no notice shows; the tab still lists what you have.");
+    if (ImGui::Checkbox("##ocachievements", &cfg.achievements)) change.other = true;
     row("Session", "Restart goes back to the start of the game without closing OpenCross. Quit closes OpenCross. Either way, progress since your "
                    "last save is lost.");
     if (ImGui::Button("Restart##session")) change.restart_game = true;
@@ -493,6 +496,9 @@ OptionsChange ImGuiLayer::general_tab(platform::Config& cfg) {
                                    "plays, as holding the pad's Select does. The damage numbers still show, and the spell's name stays "
                                    "for 2 seconds before it fades.");
     if (ImGui::Checkbox("##autohidecast", &cfg.autohide_cast_hud)) change.enhancements = true;
+    row("Hide cheat and speed icons", "Hides the icons at the bottom left that show which of Slow mode, Fast mode, No encounters, Battle boost "
+                                      "and Auto battle are on. They keep working, and their keys and buttons still switch them.");
+    if (ImGui::Checkbox("##hidefeatureicons", &cfg.hide_feature_icons)) change.other = true;
     if (quality_rows) quality_rows();
     end_rows();
   }
@@ -805,9 +811,6 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
       cfg.art_mode = kArtModes[ai].mode;
       change.art_mode = true;
     }
-    row("HD battle textures", "HD and modded art: the party in battle wears RDE's 4x textures. "
-                              "Off: the PS1-size battle textures of the HD file set.");
-    if (ImGui::Checkbox("##hdbattletex", &cfg.hd_battle_textures)) change.art_mode = true;
     row("Portraits", "RDE face art set.");
     static const std::vector<std::string> kPortraits = {"2021 (Radical Dreamers Edition)", "1999 (original)"};
     int pt = cfg.portraits == "1999" ? 1 : 0;
@@ -847,6 +850,12 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
                      "rough). Off: the window's resolution.",
                      cfg.ps1_res_ui))
         change.ps1_res = true;
+      if (check_cell("Use legacy models in field",
+                     "Draws the characters in the field with their original field models. Off: the playable characters, and the story "
+                     "characters and enemies that have one, are drawn with their detailed Status-screen or battle model, moving as their "
+                     "field models do.",
+                     cfg.legacy_field_models))
+        change.enhancements = true;
       ImGui::EndTable();
     }
   };
@@ -878,11 +887,13 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
       if (ImGui::Checkbox(id, &value)) change.other = true;
     };
     // A 0..max_pct % slider over a 0..max_pct / 100 factor.
-    auto percent_row = [&](const char* label, const char* id, const char* help, float& value, int max_pct) {
+    // zero: the slider's text at 0%.
+    auto percent_row = [&](const char* label, const char* id, const char* help, float& value, int max_pct, int min_pct = 0,
+                           const char* zero = nullptr) {
       row(label, help);
       ImGui::SetNextItemWidth(-FLT_MIN);
       int pct = static_cast<int>(std::lround(value * 100.0f));
-      if (ImGui::SliderInt(id, &pct, 0, max_pct, "%d%%")) {
+      if (ImGui::SliderInt(id, &pct, min_pct, max_pct, pct == 0 && zero ? zero : "%d%%")) {
         value = static_cast<float>(pct) / 100.0f;
         change.other = true;
       }
@@ -915,9 +926,17 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
       if (look_combo("##grade", cfg.grade, grade_names_, std::size(platform::kBuiltinGrades))) change.other = true;
       checkbox_row("Ambient occlusion", "##ssao", "In battle, soft shadows in creases and where the characters stand on the floor. Not over the "
                                                   "spell effects, the HUD or the menus, and not with PS1-resolution graphics.", cfg.ssao);
+      if (cfg.ssao)
+        percent_row("AO distance", "##ssaorange", "How far from the camera the shadows reach, in multiples of the characters' distance; "
+                    "beyond it they fade out, so distant scenery and the sky stay clean. 0% = no limit.", cfg.ssao_range, 1000, 0, "No limit");
       checkbox_row("Depth of field", "##dof", "In battle, what lies well behind or in front of the action is softly blurred; the characters "
                                               "in the shot stay sharp. Not over the spell effects, the HUD or the menus, and not with "
                                               "PS1-resolution graphics.", cfg.depth_of_field);
+      if (cfg.depth_of_field) {
+        percent_row("Focus range", "##dofrange", "How far in front of and behind the characters in focus the picture stays sharp before "
+                    "the blur starts (100% = the standard band).", cfg.dof_focus_range, 400, 25);
+        percent_row("Blur strength", "##dofstrength", "How strongly the out-of-focus parts are blurred.", cfg.dof_strength, 200);
+      }
       end_rows();
     }
     section("Character shaders");
@@ -963,28 +982,6 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
   auto sec_enh = [&] {
     section("Enhancements");
     if (ImGui::BeginTable("enh", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings)) {
-      if (check_cell("Smooth effect rings",
-                     "The blue contact rings of an encounter and the ring / tube shaped spell effects are 32-sided polygons on the PS1 "
-                     "(invisible at 320x224). Each segment is split along a smooth curve through the original corners.",
-                     cfg.smooth_effect_rings))
-        change.enhancements = true;
-      if (check_cell("Smooth water line",
-                     "Characters wading in water are tinted per triangle on the PS1, so the waterline is a staircase. This cuts the tint at "
-                     "the exact water plane instead.",
-                     cfg.smooth_water_line))
-        change.enhancements = true;
-      if (check_cell("Per-pixel model depth",
-                     "The PS1 paints each face of a character model whole, sorted by its average depth, so where an arm, a weapon or a "
-                     "sleeve cuts into the body, whole faces jump in front of each other as the animation moves. This sorts the models per "
-                     "pixel instead (hair and capes are pulled slightly toward the camera so they stay over the body). Off: the PS1's look.",
-                     cfg.model_pixel_depth))
-        change.enhancements = true;
-      if (check_cell("Smooth reflections",
-                     "Mirror-like model parts (FATE, Lavos, Zoah's armour ...) take their reflection from the vertex normals in whole "
-                     "texture texels on the PS1, so a slowly turning body moves its reflection in visible steps. This keeps the fraction, "
-                     "so the reflection slides smoothly with the movement. Off: the PS1's stepped look.",
-                     cfg.smooth_reflections))
-        change.enhancements = true;
       if (check_cell("Enhanced lighting / shadows",
                      "Real lighting on top of the PS1's flat colours. Characters (field and battle) get a key light from above and in front "
                      "of the camera, so faces turning away are clearly darker and faces turning toward it brighter. In battle, bright spells "
@@ -1012,11 +1009,6 @@ OptionsChange ImGuiLayer::graphics_tab(platform::Config& cfg) {
                      "fade out and restart (light patches, lamp shimmer) pulse about twice as hard and may flicker. Off: the PS1's "
                      "brightness, with smooth gradients.",
                      cfg.full_precision_effects))
-        change.enhancements = true;
-      if (check_cell("HD models in fields",
-                     "Draws the playable characters in the field with the detailed models of the Status screen instead of their field "
-                     "models, moving as their field models do. Off: the field models.",
-                     cfg.menu_models_in_field))
         change.enhancements = true;
       ImGui::EndTable();
     }

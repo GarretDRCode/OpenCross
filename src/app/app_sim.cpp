@@ -68,8 +68,7 @@ void App::apply_art_mode() {
   if (mods_changed) load_shader_looks();
   files.set_hd_mode(hd);
   if (world_ok) world.set_art_mode(hd, mods_changed);
-  const bool battle_textures_changed = battle_ready && battle.set_hd_textures(config.hd_battle_textures);
-  if (battle_ready) battle.set_art_mode(hd, mods_changed || (battle_textures_changed && hd));
+  if (battle_ready) battle.set_art_mode(hd, mods_changed);
   if (results_ok) results.set_art_mode(hd, mods_changed);
   if (party_ok) party_screen.set_hd(hd);
   if (flow_ready) flow.set_art_mode(am);
@@ -394,7 +393,8 @@ void App::update_achievements(int ticks) {
     else if (steam.connect()) steam.set_meta(game::Achievements::meta_api_name(), game::Achievements::api_names());
   }
   steam.pump();
-  while (const std::optional<std::string> title = steam.next_unlocked()) ui.toast("Achievement unlocked - " + *title);
+  while (const std::optional<std::string> title = steam.next_unlocked())
+    if (!config.hide_achievement_notices) ui.toast("Achievement unlocked - " + *title);
   // Off, nothing is earned, so what happens meanwhile can still count once it is on. Scripted runs evaluate without Steam.
   if (steam_allowed && !wanted) return;
   if (!world_ok || (flow_ready && flow.scene_mode())) return;
@@ -434,6 +434,7 @@ void App::advance(const platform::Input& raw, double dt, int ticks) {
     return_to_title();
   screen_clock += dt * 60.0;
   update_achievements(ticks);
+  update_oc_achievements(ticks);
   // Every screen below reads the left stick as the d-pad.
   platform::Input in = raw;
   platform::stick_to_dpad(in, stick_dpad);

@@ -79,8 +79,7 @@ void FieldWorld::setup_pc(int ent, int char_ref, int) {
   }
   party_ent_[static_cast<size_t>(slot)] = ent;
   bind_party_entity(slot);
-  const bool lead_ready = slot == 0 || (party_ent_[0] >= 0 && ents_[static_cast<size_t>(party_ent_[0])].placed);
-  if (slot < static_cast<int>(party_chars_.size()) && !ent_state.placed && lead_ready) place_party_spawn(slot);
+  if (slot < static_cast<int>(party_chars_.size()) && !ent_state.placed) place_party_spawn(slot);
 }
 
 void FieldWorld::place_on_controlled(int ent) {
@@ -91,11 +90,11 @@ void FieldWorld::place_on_controlled(int ent) {
   ent_state.actor.place(view_.walk(), lead_actor.triangle(), lead_actor.current().x, lead_actor.current().z, lead_actor.facing());
   ent_state.actor.set_height(lead_actor.current().y, true);
   ent_state.placed = true;
-  ent_state.spawned_on_leader = false;
 }
 
 // The V spot of each follower (party_v_spot with the controlled entity's heading), at the controlled entity's height, without a
-// walk-mesh test; then both follower trails restart where the party now stands, as FE 66 does.
+// walk-mesh test: the member keeps the walk triangle it had, with that tile's flags (terrain push, light zone), until it next
+// moves; then both follower trails restart where the party now stands, as FE 66 does.
 void FieldWorld::place_followers() {
   const int lead = player_entity();
   if (lead < 0 || !ents_[static_cast<size_t>(lead)].placed) return;
@@ -108,10 +107,10 @@ void FieldWorld::place_followers() {
     float x = 0, z = 0;
     party_v_spot(slot, lp.x, lp.z, (facing - 0x800) & 0xFFF, x, z);
     Ent& ent_state = ents_[static_cast<size_t>(ent)];
-    ent_state.actor.place(view_.walk(), view_.walk().find_triangle(x, z, lp.y), x, z, facing);
+    const int own_tri = ent_state.actor.triangle();
+    ent_state.actor.place(view_.walk(), own_tri >= 0 ? own_tri : view_.walk().find_triangle(x, z, lp.y), x, z, facing);
     ent_state.actor.set_height(lp.y, true);
     ent_state.placed = true;
-    ent_state.spawned_on_leader = false;
   }
   trail_fill(0, trail_entry_of(lead_actor));
   if (party_ent_[1] >= 0) trail_fill(1, trail_entry_of(ents_[static_cast<size_t>(party_ent_[1])].actor));
@@ -200,7 +199,7 @@ void FieldWorld::formation(u16 key, std::span<const s32> args) {
   }
 }
 
-void FieldWorld::walk_party_member(int slot, float x, float z, int final_facing, int gate_slot) {
+void FieldWorld::walk_party_member(int slot, float x, float z, int final_facing, int gate_slot, bool to_floor) {
   const int ent = party_ent_[static_cast<size_t>(slot)];
   if (ent < 0 || slot >= static_cast<int>(party_chars_.size())) return;
   script::MotionRequest request;
@@ -208,13 +207,15 @@ void FieldWorld::walk_party_member(int slot, float x, float z, int final_facing,
   request.x = static_cast<s32>(std::lround(x));
   request.z = static_cast<s32>(std::lround(z));
   start_motion(ent, request);
-  // The formation walk steps the position itself, to the floor at the target on the leader's level.
+  // The formation walk steps the position itself, to the floor at the target on the leader's level; the 86 regroup heads for
+  // the leader's own height and takes no floor at all.
   Motion& motion = ents_[static_cast<size_t>(ent)].motion;
   motion.direct = true;
+  motion.seat = to_floor;
   motion.final_facing = final_facing;
   motion.gate_slot = gate_slot;
   const float leader_y = ents_[static_cast<size_t>(party_ent_[0] >= 0 ? party_ent_[0] : ent)].actor.current().y;
-  const int tri = view_.walk().find_triangle(x, z, leader_y);
+  const int tri = to_floor ? view_.walk().find_triangle(x, z, leader_y) : -1;
   motion.ty = tri >= 0 ? view_.walk().height(tri, x, z) : leader_y;
   motion.target_y = true;
 }
@@ -593,10 +594,15 @@ int FieldWorld::character_model_byte(int char_ref) {
 void FieldWorld::refresh_party_models() {
   // 7C / DA: the party table changed; rebind the party entities (the original re-runs the entities' scripts).
   rebind_party();
+  bool follower_joined = false;
   for (int slot = 0; slot < 3; ++slot)
     if (party_ent_[static_cast<size_t>(slot)] >= 0 && slot < static_cast<int>(party_chars_.size()) &&
-        !ents_[static_cast<size_t>(party_ent_[static_cast<size_t>(slot)])].placed)
+        !ents_[static_cast<size_t>(party_ent_[static_cast<size_t>(slot)])].placed) {
       place_party_spawn(slot);
+      follower_joined |= slot > 0;
+    }
+  // A follower that had no place yet joins in the party V, as after a room load.
+  if (follower_joined) place_followers();
 }
 
 

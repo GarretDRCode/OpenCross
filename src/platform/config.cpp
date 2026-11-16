@@ -114,6 +114,12 @@ void Ini::set(std::string_view section, std::string_view key, std::string_view v
   sec->entries.push_back({std::string(key), std::string(value)});
 }
 
+std::vector<std::string> Ini::section_names() const {
+  std::vector<std::string> names;
+  for (const Section& section : sections_) names.push_back(section.name);
+  return names;
+}
+
 std::vector<std::pair<std::string, std::string>> Ini::entries(std::string_view section) const {
   std::vector<std::pair<std::string, std::string>> out;
   for (const Section& sec : sections_) {
@@ -202,7 +208,6 @@ bool Config::load(const std::filesystem::path& file) {
       art_mode = ArtMode::Hd;
     }
   }
-  hd_battle_textures = parse_bool(ini.get("Video", "HdBattleTextures"), hd_battle_textures);
   mods.clear();
   dump_stages = parse_bool(ini.get("Mods", "DumpStages"), dump_stages);
   dump_title = parse_bool(ini.get("Mods", "DumpTitle"), dump_title);
@@ -210,9 +215,11 @@ bool Config::load(const std::filesystem::path& file) {
   dump_models = parse_bool(ini.get("Mods", "DumpModels"), dump_models);
   dump_weapons = parse_bool(ini.get("Mods", "DumpWeapons"), dump_weapons);
   dump_effects = parse_bool(ini.get("Mods", "DumpEffects"), dump_effects);
+  dump_model_source = parse_bool(ini.get("Mods", "DumpModelSource"), dump_model_source);
   for (const auto& [name, value] : ini.entries("Mods")) {
     const bool is_setting = name == "DumpTextures" || name == "ReplaceTextures" || name == "DumpStages" || name == "DumpTitle" ||
-                            name == "DumpRooms" || name == "DumpModels" || name == "DumpWeapons" || name == "DumpEffects";
+                            name == "DumpRooms" || name == "DumpModels" || name == "DumpWeapons" || name == "DumpEffects" ||
+                            name == "DumpModelSource";
     if (is_setting) continue;
     ModSetting mod;
     mod.name = name;
@@ -238,6 +245,7 @@ bool Config::load(const std::filesystem::path& file) {
     render_scale = best;
   }
   ps1_jitter = parse_bool(ini.get("Video", "Ps1Jitter"), ps1_jitter);
+  legacy_field_models = parse_bool(ini.get("Video", "LegacyFieldModels"), legacy_field_models);
   {
     const int stored_msaa = parse_int(ini.get("Video", "Msaa"), msaa);
     msaa = 1;
@@ -248,17 +256,13 @@ bool Config::load(const std::filesystem::path& file) {
     for (const int level : kAnisotropyLevels)
       if (level <= stored_anisotropy) anisotropy = level;
   }
-  smooth_water_line = parse_bool(ini.get("Enhancements", "SmoothWaterLine"), smooth_water_line);
-  model_pixel_depth = parse_bool(ini.get("Enhancements", "ModelPixelDepth"), model_pixel_depth);
   autohide_cast_hud = parse_bool(ini.get("Enhancements", "AutoHideCastHud"), autohide_cast_hud);
+  hide_feature_icons = parse_bool(ini.get("Enhancements", "HideFeatureIcons"), hide_feature_icons);
   retain_battle_scenery = parse_bool(ini.get("Enhancements", "RetainBattleScenery"), retain_battle_scenery);
   full_precision_effects = parse_bool(ini.get("Enhancements", "FullPrecisionEffects"), full_precision_effects);
-  menu_models_in_field = parse_bool(ini.get("Enhancements", "MenuModelsInField"), menu_models_in_field);
-  smooth_effect_rings = parse_bool(ini.get("Enhancements", "SmoothEffectRings"), smooth_effect_rings);
-  smooth_reflections = parse_bool(ini.get("Enhancements", "SmoothReflections"), smooth_reflections);
   {
     const bool legacy = parse_bool(ini.get("Enhancements", "EnhancedLighting"), false) || parse_bool(ini.get("Enhancements", "SpellLights"), false);
-    lighting = parse_bool(ini.get("Enhancements", "Lighting"), legacy);
+    lighting = parse_bool(ini.get("Enhancements", "Lighting"), legacy || lighting);
   }
   {
     const int legacy = parse_int(ini.get("Enhancements", "SeamBlend"), -1);
@@ -289,7 +293,10 @@ bool Config::load(const std::filesystem::path& file) {
     crt_glow = parse_bool(ini.get("Shaders", "CrtGlow"), crt_glow);
     grade = ini.get("Shaders", "Grade", grade);
     ssao = parse_bool(ini.get("Shaders", "Ssao"), ssao);
+    ssao_range = std::clamp(parse_float(ini.get("Shaders", "SsaoRange"), ssao_range), 0.0f, 10.0f);
     depth_of_field = parse_bool(ini.get("Shaders", "DepthOfField"), depth_of_field);
+    dof_focus_range = std::clamp(parse_float(ini.get("Shaders", "DofFocusRange"), dof_focus_range), 0.25f, 4.0f);
+    dof_strength = std::clamp(parse_float(ini.get("Shaders", "DofStrength"), dof_strength), 0.0f, 2.0f);
   }
   master = clamp01(parse_float(ini.get("Audio", "Master"), master));
   music = clamp01(parse_float(ini.get("Audio", "Music"), music));
@@ -358,11 +365,15 @@ bool Config::load(const std::filesystem::path& file) {
   cheats.instant_growth = parse_bool(ini.get("Cheats", "InstantGrowth"), cheats.instant_growth);
   cheats.shared_growth = parse_bool(ini.get("Cheats", "SharedGrowth"), cheats.shared_growth);
   cheats.no_craft_cost = parse_bool(ini.get("Cheats", "NoCraftCost"), cheats.no_craft_cost);
+  cheats.summon_any_time = parse_bool(ini.get("Cheats", "SummonAnyTime"), cheats.summon_any_time);
+  cheats.more_summons = parse_bool(ini.get("Cheats", "MoreSummons"), cheats.more_summons);
   portraits = ini.get("Game", "Portraits", portraits) == "1999" ? "1999" : "2021";
   bgm_source = ini.get("Audio", "BgmSource", bgm_source) == "original" ? "original" : "remastered";
   debug_exit_after_screenshot = parse_bool(ini.get("Debug", "ExitAfterScreenshot"), debug_exit_after_screenshot);
   debug_log = parse_bool(ini.get("Debug", "Log"), debug_log);
   steam = parse_bool(ini.get("Game", "Steam"), steam);
+  achievements = parse_bool(ini.get("Game", "Achievements"), achievements);
+  hide_achievement_notices = parse_bool(ini.get("Game", "HideAchievementNotices"), hide_achievement_notices);
   debug_panels = parse_bool(ini.get("Debug", "Panels"), debug_panels);
   debug_entrance = parse_int(ini.get("Debug", "Entrance"), debug_entrance);
   debug_battle = parse_int(ini.get("Debug", "Battle"), debug_battle);
@@ -413,12 +424,12 @@ bool Config::save(const std::filesystem::path& file) const {
   ini.set("Game", "SlowRate", std::to_string(slow_rate));
   ini.set("Video", "Widescreen", on_off(widescreen));
   ini.set("Video", "ArtMode", art_mode == ArtMode::Modded ? "modded" : art_mode == ArtMode::Hd ? "hd" : "original");
-  ini.set("Video", "HdBattleTextures", on_off(hd_battle_textures));
   ini.set("Mods", "DumpStages", on_off(dump_stages));
   ini.set("Mods", "DumpTitle", on_off(dump_title));
   ini.set("Mods", "DumpRooms", on_off(dump_rooms));
   ini.set("Mods", "DumpModels", on_off(dump_models));
   ini.set("Mods", "DumpWeapons", on_off(dump_weapons));
+  ini.set("Mods", "DumpModelSource", on_off(dump_model_source));
   ini.set("Mods", "DumpEffects", on_off(dump_effects));
   for (const ModSetting& mod : mods) ini.set("Mods", mod.name, std::string(mod.enabled ? "1," : "0,") + mod.load_on);
   for (const auto& [key, value] : features) ini.set("Features", key, value);
@@ -426,16 +437,13 @@ bool Config::save(const std::filesystem::path& file) const {
   ini.set("Video", "Ps1ResUi", on_off(ps1_res_ui));
   ini.set("Video", "RenderScale", fmt_float(render_scale));
   ini.set("Video", "Ps1Jitter", on_off(ps1_jitter));
+  ini.set("Video", "LegacyFieldModels", on_off(legacy_field_models));
   ini.set("Video", "Msaa", std::to_string(msaa));
   ini.set("Video", "Anisotropy", std::to_string(anisotropy));
-  ini.set("Enhancements", "SmoothWaterLine", on_off(smooth_water_line));
-  ini.set("Enhancements", "ModelPixelDepth", on_off(model_pixel_depth));
   ini.set("Enhancements", "AutoHideCastHud", on_off(autohide_cast_hud));
+  ini.set("Enhancements", "HideFeatureIcons", on_off(hide_feature_icons));
   ini.set("Enhancements", "RetainBattleScenery", on_off(retain_battle_scenery));
   ini.set("Enhancements", "FullPrecisionEffects", on_off(full_precision_effects));
-  ini.set("Enhancements", "MenuModelsInField", on_off(menu_models_in_field));
-  ini.set("Enhancements", "SmoothEffectRings", on_off(smooth_effect_rings));
-  ini.set("Enhancements", "SmoothReflections", on_off(smooth_reflections));
   ini.set("Enhancements", "Lighting", on_off(lighting));
   ini.set("Enhancements", "EdgeBlend", on_off(edge_blend));
   ini.set("Shaders", "Characters", kCharacterShaderNames[static_cast<size_t>(character_shader)]);
@@ -454,7 +462,10 @@ bool Config::save(const std::filesystem::path& file) const {
   ini.set("Shaders", "CrtGlow", on_off(crt_glow));
   ini.set("Shaders", "Grade", grade);
   ini.set("Shaders", "Ssao", on_off(ssao));
+  ini.set("Shaders", "SsaoRange", fmt_float(ssao_range));
   ini.set("Shaders", "DepthOfField", on_off(depth_of_field));
+  ini.set("Shaders", "DofFocusRange", fmt_float(dof_focus_range));
+  ini.set("Shaders", "DofStrength", fmt_float(dof_strength));
   ini.set("Audio", "Master", fmt_float(master));
   ini.set("Audio", "Music", fmt_float(music));
   ini.set("Audio", "Sfx", fmt_float(sfx));
@@ -510,11 +521,15 @@ bool Config::save(const std::filesystem::path& file) const {
   ini.set("Cheats", "InstantGrowth", on_off(cheats.instant_growth));
   ini.set("Cheats", "SharedGrowth", on_off(cheats.shared_growth));
   ini.set("Cheats", "NoCraftCost", on_off(cheats.no_craft_cost));
+  ini.set("Cheats", "SummonAnyTime", on_off(cheats.summon_any_time));
+  ini.set("Cheats", "MoreSummons", on_off(cheats.more_summons));
   ini.set("Game", "Portraits", portraits);
   ini.set("Audio", "BgmSource", bgm_source);
   ini.set("Debug", "ExitAfterScreenshot", on_off(debug_exit_after_screenshot));
   ini.set("Debug", "Log", on_off(debug_log));
   ini.set("Game", "Steam", on_off(steam));
+  ini.set("Game", "Achievements", on_off(achievements));
+  ini.set("Game", "HideAchievementNotices", on_off(hide_achievement_notices));
   ini.set("Debug", "Panels", on_off(debug_panels));
   ini.set("Debug", "Entrance", std::to_string(debug_entrance));
   ini.set("Debug", "AutoConfirm", std::to_string(debug_auto_confirm));
@@ -544,6 +559,13 @@ bool Config::save(const std::filesystem::path& file) const {
 void Config::clear_session_toggles() {
   fast_mode = slow_mode = false;
   cheats.no_encounters = cheats.battle_boost = cheats.auto_battle = false;
+}
+
+void Config::use_player_defaults() {
+  lighting = edge_blend = retain_battle_scenery = full_precision_effects = true;
+  achievements = hide_achievement_notices = true;
+  legacy_field_models = false;
+  render_scale = 2.0f;
 }
 
 namespace {

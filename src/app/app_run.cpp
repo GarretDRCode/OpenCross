@@ -84,6 +84,7 @@ int App::run() {
     multiplayer_overlay();
     guide.draw(ui, input, frame_dt);
     versus_banner_overlay();
+    oc_achievements_overlay();
     // The room's entity / script tables stay while a battle, menu, movie or flow screen covers the field.
     debug_field = field_visible();
     apply_options_change(ui.options_window(config, own_ini ? config_file : std::filesystem::path()));
@@ -308,14 +309,17 @@ void App::frame_settings() {
   render::set_wide_extra(wide_extra);
   render::set_screen_extra(wide_extra);
   render::set_fov_scale(render::fov_scale_for(config.fov_deg));
-  // [Video] WideHud ("Wide Menus/HUD"): the columns per side the battle HUD edge groups and the main-menu screens spread out by -
-  // default 0 (the 4:3 canvas), 16:9 = at most a 16:9 frame's columns (49 at the 236-row fit), full = the window's.
+  // [Video] WideHud ("Wide Menus/HUD"): the columns per side the battle HUD edge groups, the main-menu screens and the shops spread
+  // out by - default 0 (the 4:3 canvas), 16:9 = at most a 16:9 frame's columns (49 at the 236-row fit), full = the window's. The
+  // parchment screens (main menu, party screen, shops, name entry) cover the widened frame in every setting.
   hud_cols = !config.widescreen || config.wide_hud == 0 ? 0.0f
              : config.wide_hud == 1 ? std::min(wide_extra, render::wide_extra_for(16.0f, 9.0f)) : wide_extra;
   if (battle_ready) battle.set_wide_hud_columns(hud_cols);
   if (menu_ok) menu.set_wide_columns(wide_extra, hud_cols);
   if (results_ok) results.set_wide_columns(wide_extra, hud_cols);
   if (party_ok) party_screen.set_wide_columns(wide_extra, hud_cols);
+  if (shop_ok) shop.set_wide_columns(wide_extra, hud_cols);
+  if (flow_ready) flow.set_wide_columns(wide_extra);
   if (battle_ready) {
     battle.set_auto(config.debug_battle_auto);
     // Cheats: Auto battle = the command picks only; the results page stays manual (RDE).

@@ -20,10 +20,11 @@ int failures = 0;
     }                                                         \
   } while (0)
 
-Config load_text(const char* text) {
+Config load_text(const char* text, bool player_ini = false) {
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "oc_test_config.ini";
   { std::ofstream(path) << text; }
   Config config;
+  if (player_ini) config.use_player_defaults();
   CHECK(config.load(path));
   std::filesystem::remove(path);
   return config;
@@ -68,29 +69,14 @@ int main() {
   CHECK(saved.find("FilterHD") == std::string::npos && saved.find("FilterSD") == std::string::npos && saved.find("FilterModded") == std::string::npos);
   Config defaults;
   CHECK(defaults.filter == TexFilter::Bilinear);
-  CHECK(defaults.hd_battle_textures && !load_text("[Video]\nHdBattleTextures=0\n").hd_battle_textures);
-  CHECK(defaults.smooth_water_line);
-  CHECK(load_text("[Enhancements]\nSmoothWaterLine=1\n").smooth_water_line);
-  // ModelPixelDepth defaults on; 0 = the PS1's per-face order.
-  CHECK(defaults.model_pixel_depth && !load_text("[Enhancements]\nModelPixelDepth=0\n").model_pixel_depth);
   // EdgeBlend defaults off.
   CHECK(!load_text("").edge_blend && load_text("[Enhancements]\nEdgeBlend=1\n").edge_blend);
   // The old SeamBlend level key maps to EdgeBlend off / on / on.
   CHECK(!load_text("[Enhancements]\nSeamBlend=0\n").edge_blend && load_text("[Enhancements]\nSeamBlend=1\n").edge_blend && load_text("[Enhancements]\nSeamBlend=2\n").edge_blend);
-  CHECK(defaults.smooth_effect_rings && !defaults.lighting);
-  // SmoothReflections defaults on; 0 = the PS1 texel steps.
-  CHECK(defaults.smooth_reflections && !load_text("[Enhancements]\nSmoothReflections=0\n").smooth_reflections);
+  CHECK(!defaults.lighting);
   CHECK(defaults.filter_effects == TexFilter::Bilinear && defaults.wide_edge_fade == 4 && !defaults.ps1_res_graphics && !defaults.ps1_res_ui);
   // The retired Toasts key is ignored.
   CHECK(load_text("[Video]\nToasts=0\n").wide_edge_fade == 4);
-  Config rings = load_text("[Enhancements]\nSmoothEffectRings=1\n");
-  CHECK(rings.smooth_effect_rings);
-  const std::filesystem::path f2 = std::filesystem::temp_directory_path() / "oc_test_config_out2.ini";
-  CHECK(rings.save(f2));
-  std::stringstream ss2;
-  { std::ifstream in(f2); ss2 << in.rdbuf(); }
-  std::filesystem::remove(f2);
-  CHECK(ss2.str().find("SmoothEffectRings=1") != std::string::npos);
   // FullPrecisionEffects defaults off and is written back.
   CHECK(!defaults.full_precision_effects);
   Config full_precision = load_text("[Enhancements]\nFullPrecisionEffects=1\n");
@@ -101,6 +87,20 @@ int main() {
   { std::ifstream in(f4); ss4 << in.rdbuf(); }
   std::filesystem::remove(f4);
   CHECK(ss4.str().find("FullPrecisionEffects=1") != std::string::npos);
+  // LegacyFieldModels: on in a --config ini, off in the player's ini, whose four Graphics enhancements default on; stored keys win.
+  CHECK(defaults.legacy_field_models && !defaults.retain_battle_scenery);
+  {
+    const Config player = load_text("", true);
+    CHECK(!player.legacy_field_models && player.lighting && player.edge_blend && player.retain_battle_scenery && player.full_precision_effects);
+    CHECK(!player.autohide_cast_hud && !player.hide_feature_icons);
+    CHECK(player.achievements && player.hide_achievement_notices && !defaults.achievements && !defaults.hide_achievement_notices);
+    CHECK(!load_text("[Game]\nHideAchievementNotices=0\n", true).hide_achievement_notices);
+    CHECK(player.render_scale == 2.0f && defaults.render_scale == 1.0f && load_text("[Video]\nRenderScale=1\n", true).render_scale == 1.0f);
+    const Config stored = load_text("[Video]\nLegacyFieldModels=1\n[Enhancements]\nLighting=0\nEdgeBlend=0\n", true);
+    CHECK(stored.legacy_field_models && !stored.lighting && !stored.edge_blend && stored.full_precision_effects);
+    CHECK(!load_text("[Enhancements]\nMenuModelsInField=0\n", true).legacy_field_models);
+    CHECK(!load_text("[Video]\nLegacyFieldModels=0\n").legacy_field_models);
+  }
   // [Shaders]: all off by default; the styles, switches and full-screen options parse and are written back; the old [Video] Crt reads as crt.
   {
     CHECK(defaults.character_shader == CharacterShader::Off && defaults.matcap == "clay" && !defaults.outlines && !defaults.rim);
@@ -124,6 +124,12 @@ int main() {
     CHECK(tuned.style_strength == 0.25f && tuned.rim_strength == 1.0f && tuned.outline_width == 4.0f && !tuned.outline_depth);
     CHECK(load_text("[Shaders]\nRimStrength=-1\n").rim_strength == 0.0f);
     CHECK(load_text("[Shaders]\nOutlineWidth=0.5\n").outline_width == 0.5f);
+    CHECK(defaults.ssao_range == 2.0f && defaults.dof_focus_range == 1.0f && defaults.dof_strength == 1.0f);
+    const Config post = load_text("[Shaders]\nSsaoRange=40\nDofFocusRange=0.1\nDofStrength=1.5\n");
+    CHECK(post.ssao_range == 10.0f && post.dof_focus_range == 0.25f && post.dof_strength == 1.5f);
+    CHECK(load_text("[Shaders]\nSsaoRange=0\n").ssao_range == 0.0f);
+    shaders.ssao_range = 3.5f;
+    shaders.dof_strength = 0.5f;
     shaders.style_strength = 0.5f;
     shaders.outline_width = 1.75f;
     const std::filesystem::path out = std::filesystem::temp_directory_path() / "oc_test_config_shaders.ini";
@@ -139,10 +145,13 @@ int main() {
     CHECK(reloaded.fullscreen_shader == FullscreenShader::Composite && reloaded.crt_mask == CrtMask::ShadowMask);
     CHECK(reloaded.ssao && reloaded.depth_of_field && text.str().find("DepthOfField=1") != std::string::npos);
     CHECK(reloaded.style_strength == 0.5f && reloaded.outline_width == 1.75f && reloaded.rim_strength == 1.0f && reloaded.outline_depth);
+    CHECK(reloaded.ssao_range == 3.5f && reloaded.dof_strength == 0.5f && reloaded.dof_focus_range == 1.0f);
   }
   // [Mods] dump categories: defaults, parse, save, reload (the Mods tab's "Dump all textures" checkboxes).
   {
     Config mods_defaults;
+    CHECK(!mods_defaults.dump_model_source && load_text("[Mods]\nDumpModelSource=1\n").dump_model_source);
+    CHECK(load_text("[Mods]\nDumpModelSource=1\n").mods.empty());
     CHECK(mods_defaults.dump_stages && mods_defaults.dump_title && mods_defaults.dump_rooms && mods_defaults.dump_models && !mods_defaults.dump_effects);
     Config mods_flipped = load_text("[Mods]\nDumpStages=0\nDumpTitle=0\nDumpRooms=0\nDumpModels=0\nDumpEffects=1\n");
     CHECK(!mods_flipped.dump_stages && !mods_flipped.dump_title && !mods_flipped.dump_rooms && !mods_flipped.dump_models && mods_flipped.dump_effects);

@@ -148,8 +148,7 @@ class BattleView {
   void set_texture_filter(bool linear) { linear_filter_ = linear ? 1 : 0; }
   // [Video] WideHud: layer columns per side the HUD edge groups move out by.
   void set_wide_hud_columns(float columns) { wide_hud_cols_ = std::max(0.0f, columns); }
-  // [Enhancements] SmoothEffectRings (off under Ps1ResGraphics), Lighting (smooth floor darkening, spell lights).
-  void set_smooth_rings(bool on) { smooth_rings_ = on; }
+  // [Enhancements] Lighting (smooth floor darkening, spell lights).
   void set_smooth_fog(bool on) { stage_pipe_.set_smooth_fog(on); }
   void set_spell_lights(bool on) {
     spell_lights_shown_ = on;
@@ -165,19 +164,17 @@ class BattleView {
     spell_.lights_on = spell_lights_shown_ || spell_rim_;
   }
   // [Shaders] Ssao / DepthOfField: the post-processing of the battle 3D picture (render/post_fx.h); both off releases its images.
-  void set_post_fx(bool ssao, bool dof) {
+  // ao_range, focus_range, blur_strength: SsaoRange, DofFocusRange, DofStrength (PostFxView).
+  void set_post_fx(bool ssao, bool dof, float ao_range, float focus_range, float blur_strength) {
     ssao_ = ssao;
     dof_ = dof;
+    post_fx_ao_range_ = ao_range;
+    post_fx_focus_range_ = focus_range;
+    post_fx_blur_strength_ = blur_strength;
     if (!ssao && !dof) post_fx_.destroy();
   }
   // force: rebuild even if `hd` is unchanged (HD <-> Modded). HD: large_font_*; original: small_font_* (the HUD art is RDE's in both modes).
   void set_art_mode(bool hd, bool force = false);
-  // [Video] HdBattleTextures for the models loaded from now on; true when it changed (the caller then forces set_art_mode in HD art).
-  bool set_hd_textures(bool on) {
-    if (model_cache_.hd_textures == on) return false;
-    model_cache_.hd_textures = on;
-    return true;
-  }
   // Element descriptions (sysmes 0x1A rows) of the element menu.
   void set_language(import::Lang lang) { lang_ = lang; }
   void set_button_prompts(platform::ButtonPromptStyle style) { button_prompts_ = style; }
@@ -304,6 +301,8 @@ class BattleView {
   battle::Outcome outcome() const { return battle_ ? battle_->outcome() : battle::Outcome::Ongoing; }
   // Element ids whose casts have started since the last call.
   std::vector<int> take_cast_elements() { return std::exchange(cast_elements_, {}); }
+  // The actions the view has begun to present since the last call, each as the events the rules made for it.
+  std::vector<std::vector<battle::ActionEvent>> take_begun_actions() { return std::exchange(begun_actions_, {}); }
   const battle::Battle* battle() const { return battle_.get(); }
   // Dev tools (ocbattleview --enemyhp).
   battle::Battle* battle_mut() { return battle_.get(); }
@@ -477,6 +476,8 @@ class BattleView {
   struct Pending {
     int unit = 0, delay = 0;
     battle::ActionEvent ev;
+    // The result shows its number (false: a pack that cannot call CallDamage, FxPack::lands_no_number).
+    bool number = true;
   };
 
   // setup
@@ -726,6 +727,7 @@ class BattleView {
   // start_release: starts the pack of the current element; false = generic path.
   bool fx_begin();
   std::vector<int> cast_elements_;
+  std::vector<std::vector<battle::ActionEvent>> begun_actions_;
   // Cast start: cast pose, chant, the colour's charge pack "ch0N".
   void fx_charge_begin();
   static bool fx_dt_emulation();
@@ -826,12 +828,15 @@ class BattleView {
       int clip = -1;
       // effects::FxModels::PackDrive: asset clip index of streamed motion file n once decoded (-1 = not loaded, -2 = failed).
       std::array<int, 4> motion_clip{{-1, -1, -1, -1}};
-      // Where its two texture pages are cut from the pack's VRAM (page x in halfwords, -1 = the textures are not the VRAM's: HD art).
-      int page_x = -1, page_y = 0, clut_x = 0, clut_y = 0;
+      // Where its two texture pages are cut from the pack's VRAM (none = the textures are not the VRAM's: HD art).
+      std::optional<FxModelPage> page;
     };
     std::map<std::string, std::unique_ptr<Model>> models;
-    // A model was given its battle model's cdrom2 mesh + texture (fx_hd_counterpart): rebuilt on an art switch.
+    // A model was given its battle model's cdrom2 mesh + texture (fx_hd_counterpart), or a texture mod can replace its models' tiles
+    // or the atlases of its overlay's packets: rebuilt on an art switch.
     bool art_dependent = false;
+    // render::texture_registry::generation() the mesh tiles were composed for.
+    unsigned tile_gen = 0;
     FxGpu() = default;
     FxGpu(const FxGpu&) = delete;
     FxGpu& operator=(const FxGpu&) = delete;
@@ -839,10 +844,11 @@ class BattleView {
   FxGpu* fx_gpu_for(const std::shared_ptr<const FxPack>& pack);
   // battle.prd's meshes (once per scene).
   FxGpu* fx_gpu_resident(const FxResident* resident);
+  // The mods' tile replacements of a mesh asset (render/stage_tiles.h): applied before its GPU copy is made (`fresh`), and again, with the object
+  // textures re-uploaded, when the mod overlay changed since.
+  void fx_apply_mesh_tiles(FxGpu& gpu, assets::StageAsset& asset, bool fresh);
   // Sprite type 20: the pack's type-0x0B models.
   void fx_load_models(FxGpu& gpu, const FxPack& pack);
-  // The two pages of a pack model cut from `vram` (fx_load_models; again after an overlay's VRAM copy into them: fx_vram_apply).
-  static std::vector<import::Image> fx_model_pages(const import::Vram& vram, int page_x, int page_y, int clut_x, int clut_y);
   // HD art: when the pack Mdl `mdl` is a byte copy of a battle model's disc mesh (S1) + skeleton (S2) and its texture page (8 bpp at halfword
   // (img_x, img_y), CLUT row (clut_x, clut_y)) holds that model's disc .ltd / .ltc main image + CLUT row 0, and the model has a cdrom2 (HD)
   // variant: `out_mdl` = mdl with the cdrom2 S1, `out_vram` = vram with the cdrom2 image + CLUT written at the same place. Returns the stem.
@@ -1015,6 +1021,7 @@ class BattleView {
   float post_fx_focus_ = -1.0f;
   float post_fx_amount_ = 0.0f;
   int post_fx_tick_ = 0;
+  float post_fx_ao_range_ = 0.0f, post_fx_focus_range_ = 1.0f, post_fx_blur_strength_ = 1.0f;
   // The post-processing of the picture drawn so far (stage, units, weapons): the view depth, the passes and their result over it.
   void draw_post_fx(const render::Frame& frame, const render::Letterbox& lb, const render::Rect& scissor, const render::Mat4& view_proj,
                     const render::Mat4& view);
@@ -1353,7 +1360,7 @@ class BattleView {
     int ticks = 0;
   } pa_;
   void pa_begin(const std::shared_ptr<const FxPack>& pack);
-  void fx_queue_hits();
+  void fx_queue_hits(bool number);
   void pa_tick();
   void pa_event(const bseq::Event& event);
   void pa_draw(const render::Frame& frame, const render::Letterbox& lb);
@@ -1410,7 +1417,6 @@ class BattleView {
   bool fog_pass_ = false;
   // Depth-cue switch: op 0x24 on (and every actor gets the depth-cued renderer), op 0x6C off; off by default (battle start / effect start /
   // reset). Ops 0x49 / 0x4A / 0x4B give all / targets / casters back the plain renderer. Fog ramps (0x2D) show only while it is on.
-  bool smooth_rings_ = false;
   bool fx_fog_on_ = false;
   // Ticks until the stage lens flare returns after a pack's end hook.
   int fx_lens_wait_ = 0;

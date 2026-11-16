@@ -19,6 +19,8 @@ class Ini {
   void set(std::string_view section, std::string_view key, std::string_view value);
   // All key=value pairs of one section, in file order.
   std::vector<std::pair<std::string, std::string>> entries(std::string_view section) const;
+  // The section names, in file order.
+  std::vector<std::string> section_names() const;
 
  private:
   struct Entry {
@@ -134,6 +136,8 @@ struct MultiplayerSettings {
 //   no_craft_cost      the forge (Zappa) builds without using materials or gold
 //   instant_growth     a won fight grants the stat growth of a full star and raises each grown member to a typical record for the star count
 //   shared_growth      a won fight's growth also reaches the bench and the knocked-out members
+//   summon_any_time    a party summon can be cast whatever colours the field ring holds
+//   more_summons       a summon placed in the grid editor keeps its stock copy, and a summon cast does not use up its cell
 struct Cheats {
   bool no_encounters = false;
   bool battle_boost = false;
@@ -151,6 +155,8 @@ struct Cheats {
   bool no_craft_cost = false;
   bool instant_growth = false;
   bool shared_growth = false;
+  bool summon_any_time = false;
+  bool more_summons = false;
 };
 // The live cheat set (a default all-off one until bind_cheats is called).
 const Cheats& cheats();
@@ -166,7 +172,7 @@ void bind_cheats(const Cheats* set);
 //            WideEdgeFade: widescreen only, fade the room picture's cut edge into black over this many layer pixels (0 = off).
 //            FovDeg: horizontal field of view in degrees of the 4:3 picture (battle, title sea); 35 = the PS1's own (H 512:
 //            2 atan(160 / 512) = 34.7); 30..110, larger = wider.
-//            WideHud ("Wide Menus/HUD", widescreen only, default full): default = the battle HUD and the main menu on the 4:3 canvas, 16:9 = spread to a
+//            WideHud ("Wide Menus/HUD", widescreen only, default full): default = the battle HUD, the main menu and the shops on the 4:3 canvas, 16:9 = spread to a
 //            16:9 frame's width, full = spread to the window's edges (stored as the kWideHudNames word; old `WideHudEdges=1` reads as full).
 //            Widescreen (F7 toggles): the field, world map, battle and the title's 3D sea fill the window's own width (any shape wider
 //            than 4:3; render::wide_extra_for); menus, dialogue, the title logo / menu and movies stay 4:3. Off = 4:3 with black bars.
@@ -174,6 +180,8 @@ void bind_cheats(const Cheats* set);
 //            Ps1ResGraphics = the field picture, battle 3D and title sea at 320 x 224; Ps1ResUi = the menus / shops / title menu / name entry /
 //            Continue / party screens at their PS1 overlay's display size (512x448, 640x448, ...), the battle HUD / menus / results, the pause
 //            screen and the field dialogue windows in a 320(+2e) x 240 picture; the PS1 disc textures of the menus are used only in classic art.
+//            LegacyFieldModels (Retro look): field characters keep their field models; off = they are drawn with their Status-screen
+//            model, posed by their field model (game/menu_rig.h).
 //            RenderScale: the 3D pictures (field picture, battle 3D, title sea, world map) are drawn into an off-screen target at this
 //            multiple of the output resolution (above 1 = supersampled, area-filtered down; below 1 = bilinear up) and composited under
 //            the 2D / UI drawn at output resolution; with Ps1ResGraphics the multiple of the PS1 320 x 224 target instead (2 = 640 x 448); one of
@@ -194,17 +202,14 @@ void bind_cheats(const Cheats* set);
 //            scenes; room 3D meshes + models; battle / field unit models; effect sprite sheets + effect meshes - large, off by default).
 //   [Features] the player's settings of the engine features mods turn on: <Feature>.<Setting>=<value> (core/features.h), winning over
 //            every mod's mod.ini; kept as written, read at launch.
-//   [Enhancements] (all independent of the Ps1Res settings) SmoothEffectRings: ring / tube effect meshes get extra segments.
-//            SmoothWaterLine: submerged actor parts are cut at the exact water plane, not per whole triangle. ModelPixelDepth: model faces
-//            meet per pixel instead of being painted whole in their ordering-table slot (hair / capes pulled one slot nearer). Lighting: key light on the
+//   [Enhancements] (all independent of the Ps1Res settings) Lighting: key light on the
 //            models, bright spell effects light the battle units and stage, units cast real shadows (field and battle) and the battle floor darkens
 //            smoothly per vertex. EdgeBlend: cross-fades the faces along the texture seams of
-//            the stage / title meshes, any art mode. SmoothReflections: env-mapped model parts (FATE, Lavos, ...) slide their reflection
-//            sub-texel (off = the PS1's one-texel steps).
+//            the stage / title meshes, any art mode.
 //            AutoHideCastHud: the battle HUD / menus / windows are hidden during element, tech and summon casts (as pad Select held), except the cast header for its first 2 seconds.
+//            HideFeatureIcons: the play-time feature icons (auto battle, battle boost, encounters off, slow, fast) are not drawn; the toggles work as before.
 //            RetainBattleScenery: the battle stage's intro-only layer (bg_00's sea, fish and birds, dust, smoke ...) stays for the whole battle.
 //            FullPrecisionEffects: effect sprites keep the light the PS1 loses to rounding (as RDE); faint glows pulse harder.
-//            MenuModelsInField: field characters are drawn with their Status-screen model, posed by their field model (game/menu_rig.h).
 //   [Shaders] (opt-in, off by default, any art mode) Characters: kCharacterShaderNames, the shading of the field actors, the battle units
 //            and their weapons and the status screen's model (render/mesh_pipeline.h CharacterShading); Matcap: the matcap style's look (a
 //            built-in or a mod's shaders/matcaps/<name>.png); StyleStrength 0..1: how much of the style's shading shows; Outlines: a dark
@@ -275,26 +280,23 @@ struct Config {
   int slow_rate = 50;
   bool widescreen = false;
   ArtMode art_mode = ArtMode::Hd;
-  // HD art: battle players on RDE's 4x Status-screen TIM (false = their 1x .ltc).
-  bool hd_battle_textures = true;
   std::vector<ModSetting> mods;
   std::vector<std::pair<std::string, std::string>> features;
   bool dump_stages = true, dump_title = true, dump_rooms = true, dump_models = true, dump_weapons = true, dump_effects = false;
+  // [Mods] DumpModelSource: the models at their 1x size instead of RDE's 4x images.
+  bool dump_model_source = false;
   bool ps1_res_graphics = false;
   bool ps1_res_ui = false;
   float render_scale = 1.0f;
   static constexpr float kRenderScales[] = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f};
   bool ps1_jitter = false;
-  bool smooth_effect_rings = true;
-  bool smooth_water_line = true;
-  bool model_pixel_depth = true;
   bool lighting = false;
   bool edge_blend = false;
-  bool smooth_reflections = true;
   bool autohide_cast_hud = false;
+  bool hide_feature_icons = false;
   bool retain_battle_scenery = false;
   bool full_precision_effects = false;
-  bool menu_models_in_field = false;
+  bool legacy_field_models = true;
   CharacterShader character_shader = CharacterShader::Off;
   std::string matcap = "clay";
   float style_strength = 1.0f;
@@ -311,7 +313,12 @@ struct Config {
   bool crt_glow = false;
   std::string grade = "off";
   bool ssao = false;
+  // Past this many times the focus distance the AO fades out; 0 = no limit.
+  float ssao_range = 2.0f;
   bool depth_of_field = false;
+  // The sharp band's width and the blur radius, factors.
+  float dof_focus_range = 1.0f;
+  float dof_strength = 1.0f;
   int msaa = 1;
   static constexpr int kMsaaLevels[] = {1, 2, 4, 8};
   int anisotropy = 1;
@@ -335,6 +342,10 @@ struct Config {
   bool debug_exit_after_screenshot = false;
   bool debug_log = false;
   bool steam = false;
+  // [Game] Achievements: OpenCross's own achievement set.
+  bool achievements = false;
+  // [Game] HideAchievementNotices: no unlock popup or toast, for OpenCross's achievements and Steam's alike.
+  bool hide_achievement_notices = false;
   bool debug_panels = false;
   int debug_entrance = 0;
   int debug_auto_confirm = 0;
@@ -373,6 +384,9 @@ struct Config {
   bool save(const std::filesystem::path& file) const;
   // Switches those five off: RDE starts every launch with them off. load() still reads them (a --config ini for tests).
   void clear_session_toggles();
+  // The player's own ini (not a --config one) reads a missing key with the player's defaults: the Graphics tab's enhancements on
+  // the HD models in fields, RenderScale 2, OpenCross's achievements on and achievement notices hidden. Called before load(); a --config ini keeps the faithful member defaults.
+  void use_player_defaults();
 };
 
 // First launch (no opencross.ini): the [Game] Language the OS asks for: en fr it de es -> the same, ja -> jp, anything else en.

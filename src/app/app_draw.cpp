@@ -139,8 +139,11 @@ void App::draw_frame(const render::Frame& frame) {
   // list and name entry included).
   if (feature_icons_ok && !game::free_cam().hide_overlays()) {
     const bool locked = speed_locked();
-    const ui::FeatureIcons::Active active{config.cheats.auto_battle, config.cheats.battle_boost, config.cheats.no_encounters,
-                                          config.slow_mode && !locked, config.fast_mode && !locked};
+    // [Enhancements] HideFeatureIcons draws none of the toggle icons; the AUTO SAVE strip stays.
+    const ui::FeatureIcons::Active active =
+        config.hide_feature_icons ? ui::FeatureIcons::Active{}
+                                  : ui::FeatureIcons::Active{config.cheats.auto_battle, config.cheats.battle_boost, config.cheats.no_encounters,
+                                                             config.slow_mode && !locked, config.fast_mode && !locked};
     import::Lang icon_lang = import::Lang::En;
     import::parse_lang(config.language, icon_lang);
     feature_icons.draw(frame, vw, vh, active, icon_lang);
@@ -177,27 +180,21 @@ void App::apply_frame_options() {
   if (results_ok) results.set_filter(config.filter == platform::TexFilter::Bilinear);
   // The filter covers the stage, units and weapons of the battle.
   if (battle_ready) battle.set_texture_filter(config.filter == platform::TexFilter::Bilinear);
-  // The [Enhancements] are independent of the Ps1Res settings: SmoothEffectRings, SmoothWaterLine, ModelPixelDepth, SmoothReflections (env-mapped parts), Lighting
+  // The [Enhancements] are independent of the Ps1Res settings: Lighting
   // (the key light for field + battle models, the cast shadows, and the spell glow), EdgeBlend (the stage pipelines draw the modded tiles' seam strips),
   // FullPrecisionEffects (every particle batch).
   {
-    const bool rings = config.smooth_effect_rings;
-    meshes.set_smooth_water_line(config.smooth_water_line);
-    meshes.set_model_pixel_depth(config.model_pixel_depth);
-    meshes.set_smooth_reflections(config.smooth_reflections);
     meshes.set_enhanced_lighting(config.lighting);
     render::set_edge_blend(config.edge_blend);
     render::ParticleBatch::set_full_precision(config.full_precision_effects);
     if (battle_ready) battle.set_spell_lights(config.lighting);
     if (battle_ready) battle.set_autohide_cast(config.autohide_cast_hud);
     if (battle_ready) battle.set_keep_intro_layer(config.retain_battle_scenery);
-    if (world_ok) world.set_smooth_rings(rings);
     if (world_ok) world.set_cast_shadows(config.lighting);
-    if (world_ok) world.set_menu_models(config.menu_models_in_field);
+    if (world_ok) world.set_menu_models(!config.legacy_field_models);
     if (world_ok) world.set_camera_relative(config.camera_relative);
     status_model.set_cast_shadows(config.lighting);
     title_bd.set_cast_shadows(config.lighting);
-    if (battle_ready) battle.set_smooth_rings(rings);
   }
   // [Shaders] the character shaders: field actors, battle units, the status screen's model, the title's models.
   {
@@ -205,7 +202,8 @@ void App::apply_frame_options() {
     if (world_ok) world.set_character_shading(shading);
     if (battle_ready) battle.set_character_shading(shading, config.spell_rim, config.cast_glow);
     // [Shaders] Ssao / DepthOfField: the battle 3D at window or render-scale resolution only (not the PS1-resolution picture).
-    if (battle_ready) battle.set_post_fx(config.ssao && !config.ps1_res_graphics, config.depth_of_field && !config.ps1_res_graphics);
+    if (battle_ready) battle.set_post_fx(config.ssao && !config.ps1_res_graphics, config.depth_of_field && !config.ps1_res_graphics, config.ssao_range,
+                                         config.dof_focus_range, config.dof_strength);
     status_model.set_character_shading(shading);
     title_bd.set_character_shading(shading);
   }
@@ -536,9 +534,7 @@ void App::draw_field_ui(const SceneFrame& sf) {
                               platform::art_is_hd(config.art_mode) && !game::free_cam().hide_overlays() ? world.room_card() : nullptr,
                               screen_clock);
   if (menu_ok && !menu.closed()) menu.draw(frame, vw, vh, true);
-  // Widescreen: the shop is 4:3 (its canvas is Letterbox::fit): the wide field beside it is blacked out, i.e. pillarboxed like the title
-  // and the flow screens. The main menu and the party screen cover the widened frame themselves.
-  if (wide_extra > 0.0f && shop_open) pillarbox(sprites, frame, render::Letterbox::fit(vw, vh), vw);
+  // Widescreen: the main menu, the shops and the party screen cover the widened frame themselves.
   if (shop_open) shop.draw(frame, vw, vh, true);
   if (key_popup_ok && key_popup.active() && !world.key_list_held()) key_popup.draw(frame, vw, vh, true);
   if (party_ok && party_screen.active()) {
